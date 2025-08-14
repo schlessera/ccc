@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Claude Code Central - Development Runner (Simple Version)
+# Copy this file to ~/bin/ccc to run the development version from anywhere
+#
+# Usage: ccc [command] [options]
+
+# Configuration - adjust this path to your CCC development directory
+CCC_DEV_DIR="$HOME/bin/ccc"
+
+# Check if development directory exists
+if [ ! -d "$CCC_DEV_DIR" ]; then
+    echo "❌ CCC development directory not found at: $CCC_DEV_DIR"
+    echo "Please update the CCC_DEV_DIR variable in this script."
+    exit 1
+fi
+
+# Check if built
+if [ ! -d "$CCC_DEV_DIR/dist" ]; then
+    echo "⚠️  Project not built. Run: cd $CCC_DEV_DIR && npm run build"
+    exit 1
+fi
+
+# Run the CLI with all passed arguments
+exec node "$CCC_DEV_DIR/dist/cli/index.js" "$@"

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "eslint-server": {
+      "command": "mcp-eslint",
+      "args": ["--config", ".eslintrc.json"],
+      "env": {}
+    },
+    "prettier-server": {
+      "command": "mcp-prettier",
+      "args": ["--config", ".prettierrc"],
+      "env": {}
+    }
+  }
+}

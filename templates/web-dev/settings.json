@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "npm install",
+      "npm run *",
+      "npm test",
+      "yarn *",
+      "pnpm *",
+      "webpack",
+      "vite",
+      "eslint",
+      "prettier"
+    ],
+    "deny": [
+      "rm -rf /",
+      "sudo rm -rf"
+    ]
+  },
+  "env": {
+    "NODE_ENV": "development",
+    "PRETTIER_ENABLED": "true",
+    "ESLINT_ENABLED": "true"
+  }
+}

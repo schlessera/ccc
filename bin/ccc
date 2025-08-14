@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Claude Code Central - Development Runner
+# This script runs the development version of CCC from the source directory
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+# Check if node_modules exists
+if [ ! -d "$PROJECT_DIR/node_modules" ]; then
+    echo "⚠️  Dependencies not installed. Running npm install..."
+    cd "$PROJECT_DIR" && npm install
+fi
+
+# Check if dist directory exists
+if [ ! -d "$PROJECT_DIR/dist" ]; then
+    echo "⚠️  Project not built. Running npm run build..."
+    cd "$PROJECT_DIR" && npm run build
+fi
+
+# Run the CLI with all passed arguments
+exec node "$PROJECT_DIR/dist/cli/index.js" "$@"
