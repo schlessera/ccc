@@ -3,25 +3,25 @@ import * as path from 'path';
 import { PathUtils } from '../../utils/paths';
 import { Template, TemplateMeta } from '../../types/template';
 import { Logger } from '../../utils/logger';
+import { UserConfigManager } from '../config/user-manager';
 
 export class TemplateLoader {
   private templatesCache: Map<string, Template> = new Map();
 
   async loadTemplates(): Promise<Template[]> {
+    const userConfig = UserConfigManager.getInstance();
+    const combinedTemplates = await userConfig.getCombinedTemplates();
+    
     const templates: Template[] = [];
     
-    // Load from built-in templates directory
-    const builtInDir = path.join(__dirname, '../../../templates');
-    if (await PathUtils.exists(builtInDir)) {
-      const builtInTemplates = await this.loadTemplatesFromDir(builtInDir);
-      templates.push(...builtInTemplates);
-    }
-    
-    // Load from user templates directory
-    const userDir = PathUtils.getTemplatesDir();
-    if (await PathUtils.exists(userDir)) {
-      const userTemplates = await this.loadTemplatesFromDir(userDir);
-      templates.push(...userTemplates);
+    // Load templates from combined sources (user takes precedence over system)
+    for (const templateItem of combinedTemplates) {
+      const template = await this.loadTemplate(templateItem.name, templateItem.path);
+      if (template) {
+        // Add source information to template for debugging
+        (template as any).source = templateItem.source;
+        templates.push(template);
+      }
     }
     
     // Cache templates
@@ -29,7 +29,10 @@ export class TemplateLoader {
       this.templatesCache.set(template.name, template);
     });
     
-    Logger.debug(`Loaded ${templates.length} templates`);
+    const systemCount = combinedTemplates.filter(t => t.source === 'system').length;
+    const userCount = combinedTemplates.filter(t => t.source === 'user').length;
+    Logger.debug(`Loaded ${templates.length} templates (${systemCount} system, ${userCount} user)`);
+    
     return templates;
   }
 
@@ -98,24 +101,6 @@ export class TemplateLoader {
     return 'custom';
   }
 
-  private async loadTemplatesFromDir(dir: string): Promise<Template[]> {
-    const templates: Template[] = [];
-    const entries = await fs.readdir(dir);
-    
-    for (const entry of entries) {
-      const templatePath = path.join(dir, entry);
-      const stat = await fs.stat(templatePath);
-      
-      if (stat.isDirectory()) {
-        const template = await this.loadTemplate(entry, templatePath);
-        if (template) {
-          templates.push(template);
-        }
-      }
-    }
-    
-    return templates;
-  }
 
   private async loadTemplate(name: string, templatePath: string): Promise<Template | null> {
     const metaPath = path.join(templatePath, 'meta.json');

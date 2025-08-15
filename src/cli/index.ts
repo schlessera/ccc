@@ -10,12 +10,98 @@ import { updateCommand } from './commands/update';
 import { unlinkCommand } from './commands/unlink';
 import { addAgentCommand } from './commands/add-agent';
 import { addCommandCommand } from './commands/add-command';
+import { addHookCommand } from './commands/add-hook';
 import { installCommand } from './commands/install';
 import { cleanupCommand } from './commands/cleanup';
 import { validateCommand } from './commands/validate';
 import { statusCommand } from './commands/status';
 import { interactiveMode } from './interactive';
 import { version } from '../../package.json';
+
+// Global state for ESC key handling
+let isInMainMenu = false;
+let escHandlerSetup = false;
+let escPressed = false;
+
+// ESC key handling using readline keypress events
+function setupGlobalESCHandler(): void {
+  if (process.stdin.isTTY && !escHandlerSetup) {
+    escHandlerSetup = true;
+    
+    try {
+      // Enable keypress events without interfering with clack
+      const readline = require('readline');
+      readline.emitKeypressEvents(process.stdin);
+
+      // Handle keypress events
+      process.stdin.on('keypress', (_str, key) => {
+        try {
+          if (key && key.name === 'escape') {
+            if (isInMainMenu) {
+              // In main menu - exit application
+              p.outro(chalk.gray('Goodbye! 👋'));
+              process.exit(0);
+            } else {
+              // In sub-operation - just set the flag
+              escPressed = true;
+            }
+          }
+        } catch (error) {
+          // Silently ignore keypress handling errors
+        }
+      });
+
+    } catch (error) {
+      // If keypress setup fails, continue without ESC support
+      escHandlerSetup = false;
+    }
+  }
+}
+
+// Context management functions
+export function setMainMenuContext(inMenu: boolean): void {
+  isInMainMenu = inMenu;
+}
+
+export function wasESCPressed(): boolean {
+  const pressed = escPressed;
+  escPressed = false; // Reset after checking
+  return pressed;
+}
+
+// Create a Promise that rejects when ESC is pressed
+export function createESCCancellablePromise<T>(operation: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let completed = false;
+    
+    // Check for ESC every 50ms
+    const escCheck = setInterval(() => {
+      if (escPressed && !completed) {
+        completed = true;
+        escPressed = false; // Reset flag
+        clearInterval(escCheck);
+        reject(new Error('ESC_CANCELLED'));
+      }
+    }, 50);
+    
+    // Handle operation completion
+    operation
+      .then((result) => {
+        if (!completed) {
+          completed = true;
+          clearInterval(escCheck);
+          resolve(result);
+        }
+      })
+      .catch((error) => {
+        if (!completed) {
+          completed = true;
+          clearInterval(escCheck);
+          reject(error);
+        }
+      });
+  });
+}
 
 // Check for updates
 const pkg = require('../../package.json');
@@ -27,7 +113,7 @@ program
   .name('ccc')
   .description('Claude Code Central - Centralized AI Configuration Manager')
   .version(version)
-  .option('--verbose', 'Verbose output')
+  .option('--debug', 'Debug output')
   .option('--quiet', 'Minimal output')
   .option('--no-color', 'Disable colors')
   .option('--dry-run', 'Preview changes without applying');
@@ -48,7 +134,7 @@ program
   .description('List all managed projects')
   .option('-v, --verbose', 'Show detailed information')
   .option('--json', 'Output as JSON')
-  .action(listCommand);
+  .action((options) => listCommand(options));
 
 // Update command
 program
@@ -84,6 +170,14 @@ program
   .option('-c, --command <name>', 'Command name to add')
   .option('--list', 'List available commands')
   .action(addCommandCommand);
+
+// Add hook command
+program
+  .command('add-hook')
+  .description('Add custom hook to current project')
+  .option('-h, --hook <name>', 'Hook name to add')
+  .option('--list', 'List available hooks')
+  .action(addHookCommand);
 
 // Install command
 program
@@ -123,6 +217,9 @@ program.exitOverride();
 // Parse arguments and handle interactive mode
 (async () => {
   try {
+    // Set up global ESC key handling
+    setupGlobalESCHandler();
+    
     // Show interactive mode if no arguments
     if (!process.argv.slice(2).length) {
       // Show welcome header with Clack intro

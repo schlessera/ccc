@@ -89,15 +89,19 @@ async function showVerboseList(projects: string[], storageManager: StorageManage
     const storageDir = PathUtils.getProjectStorageDir(project);
     const backupsDir = PathUtils.getProjectBackupsDir(project);
     const backupCount = await countBackups(backupsDir);
+    const backupSize = await getDirectorySize(backupsDir);
+    const storageSize = await getDirectorySize(storageDir);
 
-    console.log(chalk.cyan.bold(project));
-    console.log(`  Template:    ${info?.projectType || 'unknown'} v${info?.templateVersion || 'N/A'}`);
-    console.log(`  Path:        ${info?.projectPath || 'N/A'}`);
-    console.log(`  Storage:     ${storageDir}`);
-    console.log(`  Created:     ${formatDate(info?.setupDate)}`);
-    console.log(`  Updated:     ${formatDate(info?.lastUpdate)}`);
-    console.log(`  Backups:     ${backupCount} (${await getDirectorySize(backupsDir)} KB)`);
-    console.log();
+    const details = [
+      `Template:    ${info?.projectType || 'unknown'} v${info?.templateVersion || 'N/A'}`,
+      `Path:        ${chalk.gray(info?.projectPath || 'N/A')}`,
+      `Storage:     ${chalk.gray(storageDir)} (${formatSize(storageSize)})`,
+      `Created:     ${formatDate(info?.setupDate)}`,
+      `Updated:     ${formatDate(info?.lastUpdate)}`,
+      `Backups:     ${backupCount} backups (${formatSize(backupSize)})`
+    ];
+
+    p.note(details.join('\n'), chalk.cyan.bold(`📂 ${project}`));
   }
 }
 

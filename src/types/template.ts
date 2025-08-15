@@ -18,5 +18,15 @@ export interface Agent {
   description: string;
   model?: string;
   color?: string;
-  content: string;
+  tools?: string;
+  content: string; // The markdown content after frontmatter
+}
+
+export interface Hook {
+  name: string;
+  description: string;
+  eventType: 'PreToolUse' | 'PostToolUse' | 'Notification' | 'UserPromptSubmit' | 'Stop' | 'SubagentStop' | 'PreCompact' | 'SessionStart';
+  matcher?: string; // Tool pattern matching
+  command: string; // Shell command to execute
+  timeout?: number;
 }

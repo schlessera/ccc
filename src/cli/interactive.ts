@@ -6,27 +6,56 @@ import { updateCommand } from './commands/update';
 import { unlinkCommand } from './commands/unlink';
 import { addAgentCommand } from './commands/add-agent';
 import { addCommandCommand } from './commands/add-command';
+import { addHookCommand } from './commands/add-hook';
 import { installCommand } from './commands/install';
 import { cleanupCommand } from './commands/cleanup';
 import { validateCommand } from './commands/validate';
+import { statusCommand } from './commands/status';
+import { PathUtils } from '../utils/paths';
+import { setMainMenuContext, createESCCancellablePromise } from './index';
 
 export async function interactiveMode(): Promise<void> {
+  
+  // Show key hints for navigation  
+  p.log.message(chalk.gray('Press Ctrl+C or ESC to exit • ESC returns to main menu from operations'));
+  
   while (true) {
-    const action = await p.select({
-      message: 'What would you like to do?',
-      options: [
+    // Check if current project is CCC-managed
+    const isManaged = await PathUtils.isProjectManaged();
+    const currentDir = process.cwd().split('/').pop() || 'current directory';
+    
+    // Build context-aware menu options
+    const options = [];
+    
+    if (isManaged) {
+      // Project is managed - show project-specific options only
+      p.log.info(chalk.green(`📁 ${currentDir} is CCC-managed`));
+      options.push(
+        { value: 'status', label: '📊 Show status' },
+        { value: 'update', label: '🔄 Update configuration' },
+        { value: 'add-command', label: '➕ Add command' },
+        { value: 'add-agent', label: '🤖 Add agent' },
+        { value: 'add-hook', label: '🎣 Add hook' },
+        { value: 'unlink', label: '🔗 Unlink project' }
+      );
+    } else {
+      // Project is not managed - show setup and global management options
+      p.log.info(chalk.yellow(`📁 ${currentDir} is not CCC-managed`));
+      options.push(
         { value: 'setup', label: '🚀 Setup current project' },
         { value: 'list', label: '📋 List managed projects' },
-        { value: 'update', label: '🔄 Update project configuration' },
-        { value: 'unlink', label: '🔗 Unlink project' },
-        { value: 'add-command', label: '➕ Add command to project' },
-        { value: 'add-agent', label: '🤖 Add agent to project' },
-        { value: 'install', label: '📦 Install global commands' },
-        { value: 'cleanup', label: '🧹 Cleanup old backups' },
         { value: 'validate', label: '✅ Validate setup' },
-        { value: 'help', label: '❓ Help' },
-        { value: 'exit', label: '🚪 Exit' },
-      ],
+        { value: 'install', label: '📦 Install global commands' },
+        { value: 'cleanup', label: '🧹 Cleanup old backups' }
+      );
+    }
+    
+    // Set context: we're in main menu
+    setMainMenuContext(true);
+    
+    const action = await p.select({
+      message: 'What would you like to do?',
+      options,
     });
 
     if (p.isCancel(action)) {
@@ -35,78 +64,52 @@ export async function interactiveMode(): Promise<void> {
     }
 
     try {
+      // Set context: we're no longer in main menu  
+      setMainMenuContext(false);
+      
       switch (action) {
         case 'setup':
-          await setupCommand({});
+          await createESCCancellablePromise(setupCommand({}));
+          break;
+        case 'status':
+          await createESCCancellablePromise(statusCommand({}));
           break;
         case 'list':
-          await listCommand({ verbose: false });
+          await createESCCancellablePromise(listCommand({ verbose: false }));
           break;
         case 'update':
-          await updateCommand({});
+          await createESCCancellablePromise(updateCommand({}));
           break;
         case 'unlink':
-          await unlinkCommand({});
+          await createESCCancellablePromise(unlinkCommand({}));
           break;
         case 'add-command':
-          await addCommandCommand({});
+          await createESCCancellablePromise(addCommandCommand({}));
           break;
         case 'add-agent':
-          await addAgentCommand({});
+          await createESCCancellablePromise(addAgentCommand({}));
+          break;
+        case 'add-hook':
+          await createESCCancellablePromise(addHookCommand({}));
           break;
         case 'install':
-          await installCommand({});
+          await createESCCancellablePromise(installCommand({}));
           break;
         case 'cleanup':
-          await cleanupCommand({ days: '30' });
+          await createESCCancellablePromise(cleanupCommand({ days: '30' }));
           break;
         case 'validate':
-          await validateCommand({});
+          await createESCCancellablePromise(validateCommand({}));
           break;
-        case 'help':
-          showHelp();
-          break;
-        case 'exit':
-          p.outro(chalk.cyan('Goodbye! 👋'));
-          process.exit(0);
       }
     } catch (error: any) {
-      console.error(chalk.red(`\nError: ${error.message}`));
+      // Check if this was an ESC-triggered cancellation
+      if (error.message === 'ESC_CANCELLED') {
+        p.log.info(chalk.yellow('Operation cancelled, returning to main menu'));
+      } else {
+        console.error(chalk.red(`\nError: ${error.message}`));
+      }
       // Continue to menu instead of exiting on error
     }
   }
-}
-
-function showHelp(): void {
-  const helpText = [
-    '',
-    chalk.cyan.bold('Commands:'),
-    `  ${chalk.green('setup')}          Setup current project with central management`,
-    `  ${chalk.green('list')}           List all managed projects`,
-    `  ${chalk.green('update')}         Update project templates`,
-    `  ${chalk.green('unlink')}         Remove central management from project`,
-    `  ${chalk.green('add-agent')}      Add AI agent to current project`,
-    `  ${chalk.green('add-command')}    Add custom command to current project`,
-    `  ${chalk.green('install')}        Install global management commands`,
-    `  ${chalk.green('cleanup')}        Clean up old backups`,
-    `  ${chalk.green('validate')}       Validate system integrity`,
-    `  ${chalk.green('status')}         Check current project status`,
-    '',
-    chalk.cyan.bold('Usage:'),
-    `  ${chalk.gray('$')} npx ccc ${chalk.green('[command] [options]')}`,
-    `  ${chalk.gray('$')} npx ccc ${chalk.gray('# Interactive mode')}`,
-    '',
-    chalk.cyan.bold('Examples:'),
-    `  ${chalk.gray('$')} npx ccc setup --template=web-dev`,
-    `  ${chalk.gray('$')} npx ccc list --verbose`,
-    `  ${chalk.gray('$')} npx ccc update --all`,
-    `  ${chalk.gray('$')} npx ccc cleanup --days=30`,
-    '',
-    chalk.cyan.bold('Learn more:'),
-    `  Documentation: ${chalk.blue('https://github.com/schlessera/ccc')}`,
-    `  Issues: ${chalk.blue('https://github.com/schlessera/ccc/issues')}`,
-    ''
-  ];
-
-  p.log.message(helpText.join('\n'));
 }

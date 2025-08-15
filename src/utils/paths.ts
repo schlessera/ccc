@@ -1,24 +1,31 @@
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs-extra';
+import { UserConfigManager } from '../core/config/user-manager';
 
 export class PathUtils {
-  private static cccDir = path.join(os.homedir(), '.ccc');
+  private static getUserConfig(): UserConfigManager {
+    return UserConfigManager.getInstance();
+  }
 
   static getStorageDir(): string {
-    return path.join(this.cccDir, 'storage');
+    return path.join(this.getUserConfig().getConfigDir(), 'storage');
   }
 
   static getTemplatesDir(): string {
-    return path.join(this.cccDir, 'templates');
+    return this.getUserConfig().getUserTemplatesDir();
   }
 
   static getCommandsDir(): string {
-    return path.join(this.cccDir, 'commands');
+    return this.getUserConfig().getUserCommandsDir();
   }
 
   static getAgentsDir(): string {
-    return path.join(this.cccDir, 'agents');
+    return this.getUserConfig().getUserAgentsDir();
+  }
+
+  static getHooksDir(): string {
+    return this.getUserConfig().getUserHooksDir();
   }
 
   static getProjectStorageDir(projectName: string): string {
@@ -52,5 +59,26 @@ export class PathUtils {
 
   static getRelativePath(from: string, to: string): string {
     return path.relative(from, to);
+  }
+
+  /**
+   * Check if current directory is CCC-managed by looking for symlinked .claude and CLAUDE.md
+   */
+  static async isProjectManaged(projectPath?: string): Promise<boolean> {
+    const resolvedPath = this.resolveProjectPath(projectPath);
+    const claudeDir = path.join(resolvedPath, '.claude');
+    const claudeFile = path.join(resolvedPath, 'CLAUDE.md');
+    
+    try {
+      // Check if both .claude and CLAUDE.md exist as symlinks
+      const [claudeDirStats, claudeFileStats] = await Promise.all([
+        fs.lstat(claudeDir).catch(() => null),
+        fs.lstat(claudeFile).catch(() => null)
+      ]);
+      
+      return !!(claudeDirStats?.isSymbolicLink() && claudeFileStats?.isSymbolicLink());
+    } catch {
+      return false;
+    }
   }
 }

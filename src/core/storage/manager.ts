@@ -119,6 +119,11 @@ export class StorageManager {
     }
   }
 
+  // Alias for deleteProject
+  async removeProject(projectName: string): Promise<void> {
+    return this.deleteProject(projectName);
+  }
+
   async listProjects(): Promise<string[]> {
     const storageDir = PathUtils.getStorageDir();
     

@@ -1,0 +1,6 @@
+{
+  "description": "System hook that should be overridden",
+  "type": "custom",
+  "language": "bash",
+  "script": "#!/bin/bash\necho \"This is the SYSTEM hook\""
+}
