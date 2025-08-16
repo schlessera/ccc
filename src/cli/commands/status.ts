@@ -4,6 +4,7 @@ import * as p from '@clack/prompts';
 import { PathUtils } from '../../utils/paths';
 import { SymlinkManager } from '../../core/symlinks/manager';
 import { StorageManager } from '../../core/storage/manager';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface StatusOptions {
   project?: string;
@@ -68,7 +69,7 @@ async function showCurrentDirectoryStatus(): Promise<void> {
 
 async function showProjectStatus(projectName: string): Promise<void> {
   try {
-    const storageManager = new StorageManager();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
     const projectInfo = await storageManager.getProjectInfo(projectName);
     
     if (!projectInfo) {

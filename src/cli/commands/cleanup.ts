@@ -4,6 +4,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { StorageManager } from '../../core/storage/manager';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface CleanupOptions {
   days?: string;
@@ -22,7 +23,7 @@ interface BackupInfo {
 
 export async function cleanupCommand(options: CleanupOptions): Promise<void> {
   try {
-    const storageManager = new StorageManager();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
     const daysThreshold = parseInt(options.days || '30');
     const keepCount = options.keep ? parseInt(options.keep) : undefined;
     

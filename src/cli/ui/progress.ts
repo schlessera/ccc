@@ -14,7 +14,7 @@ export class ProgressBar {
   }
 
   update(current: number, message?: string): void {
-    this.current = Math.min(current, this.total);
+    this.current = Math.max(0, Math.min(current, this.total));
     this.render(message);
   }
 

@@ -4,6 +4,7 @@ import { StorageManager } from '../../core/storage/manager';
 import { SymlinkManager } from '../../core/symlinks/manager';
 import { TemplateLoader } from '../../core/templates/loader';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface SetupOptions {
   template?: string;
@@ -17,8 +18,8 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   try {
     const projectPath = PathUtils.resolveProjectPath();
-    const templateLoader = new TemplateLoader();
-    const storageManager = new StorageManager();
+    const templateLoader = getService<TemplateLoader>(ServiceKeys.TemplateLoader);
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
     const symlinkManager = new SymlinkManager();
 
     // Step 1: Analyze project

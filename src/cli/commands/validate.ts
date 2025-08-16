@@ -5,6 +5,7 @@ import * as path from 'path';
 import { StorageManager } from '../../core/storage/manager';
 import { SymlinkManager } from '../../core/symlinks/manager';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface ValidateOptions {
   project?: string;
@@ -21,7 +22,7 @@ interface ValidationIssue {
 
 export async function validateCommand(options: ValidateOptions): Promise<void> {
   try {
-    const storageManager = new StorageManager();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
     const symlinkManager = new SymlinkManager();
 
     if (options.project) {

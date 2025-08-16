@@ -14,12 +14,18 @@ import { statusCommand } from './commands/status';
 import { PathUtils } from '../utils/paths';
 import { setMainMenuContext, createESCCancellablePromise } from './index';
 
-export async function interactiveMode(): Promise<void> {
+export async function interactiveMode(maxIterations?: number): Promise<void> {
   
   // Show key hints for navigation  
   p.log.message(chalk.gray('Press Ctrl+C or ESC to exit • ESC returns to main menu from operations'));
   
-  while (true) {
+  // In test mode, default to 1 iteration to prevent infinite loops
+  const isTestMode = process.env.CCC_TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+  const iterationLimit = maxIterations ?? (isTestMode ? 1 : Infinity);
+  
+  let iterations = 0;
+  while (iterations < iterationLimit) {
+    iterations++;
     // Check if current project is CCC-managed
     const isManaged = await PathUtils.isProjectManaged();
     const currentDir = process.cwd().split('/').pop() || 'current directory';

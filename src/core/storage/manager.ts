@@ -1,11 +1,11 @@
-import * as fs from 'fs-extra';
-import * as path from 'path';
+import { IFileSystem } from '../interfaces/filesystem';
 import { PathUtils } from '../../utils/paths';
 import { Logger } from '../../utils/logger';
 import { ProjectInfo } from '../../types/config';
 import { Template } from '../../types/template';
 
 export class StorageManager {
+  constructor(private fileSystem: IFileSystem) {}
   async createProject(projectName: string, template: Template): Promise<void> {
     const storageDir = PathUtils.getProjectStorageDir(projectName);
     
@@ -32,12 +32,12 @@ export class StorageManager {
     await PathUtils.ensureDir(storageDir);
     
     // Check for existing .claude directory and CLAUDE.md
-    const existingClaudeDir = path.join(projectPath, '.claude');
-    const existingClaudeFile = path.join(projectPath, 'CLAUDE.md');
+    const existingClaudeDir = this.fileSystem.join(projectPath, '.claude');
+    const existingClaudeFile = this.fileSystem.join(projectPath, 'CLAUDE.md');
     
     // Copy existing .claude directory if it exists
     if (await PathUtils.exists(existingClaudeDir)) {
-      await fs.copy(existingClaudeDir, storageDir, {
+      await this.fileSystem.copy(existingClaudeDir, storageDir, {
         overwrite: false,
         errorOnExist: false,
       });
@@ -48,11 +48,11 @@ export class StorageManager {
     
     // Copy existing CLAUDE.md if it exists
     if (await PathUtils.exists(existingClaudeFile)) {
-      await fs.copy(existingClaudeFile, path.join(storageDir, 'CLAUDE.md'));
-    } else if (!await PathUtils.exists(path.join(storageDir, 'CLAUDE.md'))) {
+      await this.fileSystem.copy(existingClaudeFile, this.fileSystem.join(storageDir, 'CLAUDE.md'));
+    } else if (!await PathUtils.exists(this.fileSystem.join(storageDir, 'CLAUDE.md'))) {
       // Create minimal CLAUDE.md if none exists
-      await fs.writeFile(
-        path.join(storageDir, 'CLAUDE.md'),
+      await this.fileSystem.writeFile(
+        this.fileSystem.join(storageDir, 'CLAUDE.md'),
         '# Project Guidelines\n\n## Overview\n\nThis project uses its existing configuration.\n\n## Custom Configuration\n\nAdd your project-specific guidelines here.\n'
       );
     }
@@ -65,9 +65,9 @@ export class StorageManager {
 
   private async createMinimalDefaults(storageDir: string): Promise<void> {
     // Create minimal settings.json
-    const settingsPath = path.join(storageDir, 'settings.json');
+    const settingsPath = this.fileSystem.join(storageDir, 'settings.json');
     if (!await PathUtils.exists(settingsPath)) {
-      await fs.writeJSON(settingsPath, {
+      await this.fileSystem.writeJSON(settingsPath, {
         permissions: {
           allow: [],
           deny: []
@@ -78,7 +78,7 @@ export class StorageManager {
   }
 
   private async createProjectInfoForExisting(projectName: string, projectPath: string): Promise<void> {
-    const infoPath = path.join(
+    const infoPath = this.fileSystem.join(
       PathUtils.getProjectStorageDir(projectName),
       '.project-info'
     );
@@ -92,7 +92,7 @@ export class StorageManager {
       `LAST_UPDATE=${new Date().toISOString()}`,
     ].join('\n');
     
-    await fs.writeFile(infoPath, info);
+    await this.fileSystem.writeFile(infoPath, info);
   }
 
   async updateProject(projectName: string, template: Template): Promise<void> {
@@ -114,7 +114,7 @@ export class StorageManager {
     const storageDir = PathUtils.getProjectStorageDir(projectName);
     
     if (await PathUtils.exists(storageDir)) {
-      await fs.remove(storageDir);
+      await this.fileSystem.remove(storageDir);
       Logger.success(`Removed storage for ${projectName}`);
     }
   }
@@ -131,12 +131,12 @@ export class StorageManager {
       return [];
     }
     
-    const entries = await fs.readdir(storageDir);
+    const entries = await this.fileSystem.readdir(storageDir);
     const projects: string[] = [];
     
     for (const entry of entries) {
-      const fullPath = path.join(storageDir, entry);
-      const stat = await fs.stat(fullPath);
+      const fullPath = this.fileSystem.join(storageDir, entry);
+      const stat = await this.fileSystem.stat(fullPath);
       
       if (stat.isDirectory()) {
         projects.push(entry);
@@ -147,7 +147,7 @@ export class StorageManager {
   }
 
   async getProjectInfo(projectName: string): Promise<ProjectInfo | null> {
-    const infoPath = path.join(
+    const infoPath = this.fileSystem.join(
       PathUtils.getProjectStorageDir(projectName),
       '.project-info'
     );
@@ -156,14 +156,14 @@ export class StorageManager {
       return null;
     }
     
-    const content = await fs.readFile(infoPath, 'utf-8');
+    const content = await this.fileSystem.readFile(infoPath, 'utf-8');
     const info: ProjectInfo = this.parseProjectInfo(content);
     
     return info;
   }
 
   private async copyTemplateFiles(templatePath: string, targetPath: string): Promise<void> {
-    await fs.copy(templatePath, targetPath, {
+    await this.fileSystem.copy(templatePath, targetPath, {
       overwrite: false,
       errorOnExist: false,
     });
@@ -174,25 +174,25 @@ export class StorageManager {
     const templateFiles = await this.getTemplateFiles(templatePath);
     
     for (const file of templateFiles) {
-      const sourcePath = path.join(templatePath, file);
-      const targetFile = path.join(targetPath, file);
+      const sourcePath = this.fileSystem.join(templatePath, file);
+      const targetFile = this.fileSystem.join(targetPath, file);
       
       if (file === 'CLAUDE.md') {
         await this.mergeClaudeFile(sourcePath, targetFile);
       } else {
-        await fs.copy(sourcePath, targetFile, { overwrite: true });
+        await this.fileSystem.copy(sourcePath, targetFile, { overwrite: true });
       }
     }
   }
 
   private async mergeClaudeFile(sourcePath: string, targetPath: string): Promise<void> {
     if (!await PathUtils.exists(targetPath)) {
-      await fs.copy(sourcePath, targetPath);
+      await this.fileSystem.copy(sourcePath, targetPath);
       return;
     }
     
-    const sourceContent = await fs.readFile(sourcePath, 'utf-8');
-    const targetContent = await fs.readFile(targetPath, 'utf-8');
+    const sourceContent = await this.fileSystem.readFile(sourcePath, 'utf-8');
+    const targetContent = await this.fileSystem.readFile(targetPath, 'utf-8');
     
     // Preserve custom sections
     const customSection = this.extractCustomSection(targetContent);
@@ -200,7 +200,7 @@ export class StorageManager {
       ? `${sourceContent}\n\n${customSection}`
       : sourceContent;
     
-    await fs.writeFile(targetPath, mergedContent);
+    await this.fileSystem.writeFile(targetPath, mergedContent);
   }
 
   private extractCustomSection(content: string): string | null {
@@ -224,12 +224,12 @@ export class StorageManager {
     const files: string[] = [];
     
     const walk = async (dir: string, base = ''): Promise<void> => {
-      const entries = await fs.readdir(dir);
+      const entries = await this.fileSystem.readdir(dir);
       
       for (const entry of entries) {
-        const fullPath = path.join(dir, entry);
-        const relativePath = path.join(base, entry);
-        const stat = await fs.stat(fullPath);
+        const fullPath = this.fileSystem.join(dir, entry);
+        const relativePath = this.fileSystem.join(base, entry);
+        const stat = await this.fileSystem.stat(fullPath);
         
         if (stat.isDirectory()) {
           await walk(fullPath, relativePath);
@@ -244,7 +244,7 @@ export class StorageManager {
   }
 
   private async createProjectInfo(projectName: string, template: Template): Promise<void> {
-    const infoPath = path.join(
+    const infoPath = this.fileSystem.join(
       PathUtils.getProjectStorageDir(projectName),
       '.project-info'
     );
@@ -258,11 +258,11 @@ export class StorageManager {
       `LAST_UPDATE=${new Date().toISOString()}`,
     ].join('\n');
     
-    await fs.writeFile(infoPath, info);
+    await this.fileSystem.writeFile(infoPath, info);
   }
 
   private async updateProjectInfo(projectName: string, template: Template): Promise<void> {
-    const infoPath = path.join(
+    const infoPath = this.fileSystem.join(
       PathUtils.getProjectStorageDir(projectName),
       '.project-info'
     );
@@ -282,7 +282,7 @@ export class StorageManager {
         `LAST_UPDATE=${existing.lastUpdate}`,
       ].join('\n');
       
-      await fs.writeFile(infoPath, info);
+      await this.fileSystem.writeFile(infoPath, info);
     }
   }
 
@@ -306,10 +306,10 @@ export class StorageManager {
     const backupsDir = PathUtils.getProjectBackupsDir(projectName);
     const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
     const backupName = `backup-${timestamp}`;
-    const backupPath = path.join(backupsDir, backupName);
+    const backupPath = this.fileSystem.join(backupsDir, backupName);
     
     await PathUtils.ensureDir(backupsDir);
-    await fs.copy(storageDir, backupPath, {
+    await this.fileSystem.copy(storageDir, backupPath, {
       filter: (src) => !src.includes('.backups'),
     });
     
