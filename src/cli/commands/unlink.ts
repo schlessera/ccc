@@ -5,6 +5,7 @@ import * as path from 'path';
 import { StorageManager } from '../../core/storage/manager';
 import { SymlinkManager } from '../../core/symlinks/manager';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface UnlinkOptions {
   keepStorage?: boolean;
@@ -22,8 +23,8 @@ export async function unlinkCommand(options: UnlinkOptions): Promise<void> {
       process.exit(1);
     }
 
-    const storageManager = new StorageManager();
-    const symlinkManager = new SymlinkManager();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
+    const symlinkManager = getService<SymlinkManager>(ServiceKeys.SymlinkManager);
     
     // Get project name
     const projectName = await getProjectNameFromPath(currentPath, storageManager);

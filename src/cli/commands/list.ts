@@ -2,6 +2,7 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { StorageManager } from '../../core/storage/manager';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
@@ -12,7 +13,7 @@ interface ListOptions {
 
 export async function listCommand(options: ListOptions): Promise<void> {
   try {
-    const storageManager = new StorageManager();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
     const projects = await storageManager.listProjects();
 
     if (projects.length === 0) {

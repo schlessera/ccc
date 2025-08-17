@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { StorageManager } from '../../core/storage/manager';
 import { TemplateLoader } from '../../core/templates/loader';
 import { PathUtils } from '../../utils/paths';
+import { getService, ServiceKeys } from '../../core/container';
 
 interface UpdateOptions {
   all?: boolean;
@@ -15,8 +16,8 @@ export async function updateCommand(options: UpdateOptions): Promise<void> {
   try {
     const currentPath = process.cwd();
     const isManaged = await PathUtils.isProjectManaged(currentPath);
-    const storageManager = new StorageManager();
-    const templateLoader = new TemplateLoader();
+    const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
+    const templateLoader = getService<TemplateLoader>(ServiceKeys.TemplateLoader);
 
     if (options.all) {
       await updateAllProjects(storageManager, templateLoader, options);
