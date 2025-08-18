@@ -91,9 +91,11 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     let projectName = options.name;
     
     if (!projectName) {
+      const defaultName = projectPath.split('/').pop() || 'my-project';
       const nameInput = await p.text({
         message: 'Project name',
-        placeholder: projectPath.split('/').pop() || 'my-project',
+        placeholder: defaultName,
+        defaultValue: defaultName,
         validate: (value) => {
           if (!value) return 'Project name is required';
           if (!/^[a-z0-9-]+$/.test(value)) {

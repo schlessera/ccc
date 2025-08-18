@@ -13,6 +13,8 @@ import { validateCommand } from './commands/validate';
 import { statusCommand } from './commands/status';
 import { PathUtils } from '../utils/paths';
 import { setMainMenuContext, createESCCancellablePromise } from './index';
+import { getService, ServiceKeys } from '../core/container';
+import { StorageManager } from '../core/storage/manager';
 
 export async function interactiveMode(maxIterations?: number): Promise<void> {
   
@@ -36,9 +38,28 @@ export async function interactiveMode(maxIterations?: number): Promise<void> {
     if (isManaged) {
       // Project is managed - show project-specific options only
       p.log.info(chalk.green(`📁 ${currentDir} is CCC-managed`));
+      
+      // Check if this project uses a template that can be updated
+      let canUpdate = true; // Default to true to show update option
+      try {
+        const storageManager = getService<StorageManager>(ServiceKeys.StorageManager);
+        const projectName = await getProjectNameFromCurrentPath(storageManager);
+        const projectInfo = projectName ? await storageManager.getProjectInfo(projectName) : null;
+        canUpdate = !projectInfo || projectInfo.projectType !== 'existing';
+      } catch (error) {
+        // In test environment or when services aren't available, default to showing update option
+        canUpdate = true;
+      }
+      
       options.push(
-        { value: 'status', label: '📊 Show status' },
-        { value: 'update', label: '🔄 Update configuration' },
+        { value: 'status', label: '📊 Show status' }
+      );
+      
+      if (canUpdate) {
+        options.push({ value: 'update', label: '🔄 Update configuration' });
+      }
+      
+      options.push(
         { value: 'add-command', label: '➕ Add command' },
         { value: 'add-agent', label: '🤖 Add agent' },
         { value: 'add-hook', label: '🎣 Add hook' },
@@ -118,4 +139,18 @@ export async function interactiveMode(maxIterations?: number): Promise<void> {
       // Continue to menu instead of exiting on error
     }
   }
+}
+
+async function getProjectNameFromCurrentPath(storageManager: StorageManager): Promise<string | null> {
+  const currentPath = process.cwd();
+  const projects = await storageManager.listProjects();
+  
+  for (const project of projects) {
+    const info = await storageManager.getProjectInfo(project);
+    if (info?.projectPath === currentPath) {
+      return project;
+    }
+  }
+  
+  return null;
 }
