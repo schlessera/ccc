@@ -91,20 +91,11 @@ describe('CLI Index Simple Coverage', () => {
   it('should cover exported functions', async () => {
     try {
       // Import and test exported functions
-      const { setMainMenuContext, wasESCPressed, createESCCancellablePromise } = await import('../../../src/cli/index');
+      const { setMainMenuContext } = await import('../../../src/cli/index');
       
       // Test setMainMenuContext
       setMainMenuContext(true);
       setMainMenuContext(false);
-      
-      // Test wasESCPressed
-      const pressed = wasESCPressed();
-      expect(pressed).toBeDefined();
-      
-      // Test createESCCancellablePromise with quick promise
-      const quickPromise = Promise.resolve('test');
-      const cancellable = createESCCancellablePromise(quickPromise);
-      await cancellable.catch(() => {});
       
       expect(true).toBe(true);
     } catch (error) {
@@ -168,24 +159,6 @@ describe('CLI Index Simple Coverage', () => {
     }
   });
 
-  it('should cover createESCCancellablePromise timeout logic', async () => {
-    try {
-      const { createESCCancellablePromise, setMainMenuContext } = await import('../../../src/cli/index');
-      
-      // Create a longer promise to allow timeout logic to execute
-      const longPromise = new Promise(resolve => setTimeout(resolve, 200));
-      
-      setMainMenuContext(false);
-      const cancellable = createESCCancellablePromise(longPromise);
-      
-      // Let it run to trigger the setInterval checks
-      await cancellable.catch(() => {});
-      
-      expect(true).toBe(true);
-    } catch (error) {
-      expect(error).toBeDefined();
-    }
-  });
 
   it('should cover ESC handler setup paths', async () => {
     try {

@@ -12,14 +12,14 @@ import { cleanupCommand } from './commands/cleanup';
 import { validateCommand } from './commands/validate';
 import { statusCommand } from './commands/status';
 import { PathUtils } from '../utils/paths';
-import { setMainMenuContext, createESCCancellablePromise } from './index';
+import { setMainMenuContext } from './index';
 import { getService, ServiceKeys } from '../core/container';
 import { StorageManager } from '../core/storage/manager';
 
 export async function interactiveMode(maxIterations?: number): Promise<void> {
   
   // Show key hints for navigation  
-  p.log.message(chalk.gray('Press Ctrl+C or ESC to exit • ESC returns to main menu from operations'));
+  p.log.message(chalk.gray('Press Ctrl+C to exit/cancel operations'));
   
   // In test mode, default to 1 iteration to prevent infinite loops
   const isTestMode = process.env.CCC_TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
@@ -96,46 +96,42 @@ export async function interactiveMode(maxIterations?: number): Promise<void> {
       
       switch (action) {
         case 'setup':
-          await createESCCancellablePromise(setupCommand({}));
+          await setupCommand({});
           break;
         case 'status':
-          await createESCCancellablePromise(statusCommand({}));
+          await statusCommand({});
           break;
         case 'list':
-          await createESCCancellablePromise(listCommand({ verbose: false }));
+          await listCommand({ verbose: false });
           break;
         case 'update':
-          await createESCCancellablePromise(updateCommand({}));
+          await updateCommand({});
           break;
         case 'unlink':
-          await createESCCancellablePromise(unlinkCommand({}));
+          await unlinkCommand({});
           break;
         case 'add-command':
-          await createESCCancellablePromise(addCommandCommand({}));
+          await addCommandCommand({});
           break;
         case 'add-agent':
-          await createESCCancellablePromise(addAgentCommand({}));
+          await addAgentCommand({});
           break;
         case 'add-hook':
-          await createESCCancellablePromise(addHookCommand({}));
+          await addHookCommand({});
           break;
         case 'install':
-          await createESCCancellablePromise(installCommand({}));
+          await installCommand({});
           break;
         case 'cleanup':
-          await createESCCancellablePromise(cleanupCommand({ days: '30' }));
+          await cleanupCommand({ days: '30' });
           break;
         case 'validate':
-          await createESCCancellablePromise(validateCommand({}));
+          await validateCommand({});
           break;
       }
     } catch (error: any) {
-      // Check if this was an ESC-triggered cancellation
-      if (error.message === 'ESC_CANCELLED') {
-        p.log.info(chalk.yellow('Operation cancelled, returning to main menu'));
-      } else {
-        console.error(chalk.red(`\nError: ${error.message}`));
-      }
+      // Handle errors gracefully and continue to main menu
+      console.error(chalk.red(`\nError: ${error.message}`));
       // Continue to menu instead of exiting on error
     }
   }

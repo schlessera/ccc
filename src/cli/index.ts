@@ -18,90 +18,27 @@ import { statusCommand } from './commands/status';
 import { interactiveMode } from './interactive';
 import { version } from '../../package.json';
 
-// Global state for ESC key handling
+// Global state for ESC key handling (currently disabled)
+// @ts-ignore - kept for compatibility with existing calls
 let isInMainMenu = false;
-let escHandlerSetup = false;
-let escPressed = false;
 
 // ESC key handling using readline keypress events
 function setupGlobalESCHandler(): void {
-  if (process.stdin.isTTY && !escHandlerSetup) {
-    escHandlerSetup = true;
-    
-    try {
-      // Enable keypress events without interfering with clack
-      const readline = require('readline');
-      readline.emitKeypressEvents(process.stdin);
-
-      // Handle keypress events
-      process.stdin.on('keypress', (_str, key) => {
-        try {
-          if (key && key.name === 'escape') {
-            if (isInMainMenu) {
-              // In main menu - exit application
-              p.outro(chalk.gray('Goodbye! 👋'));
-              process.exit(0);
-            } else {
-              // In sub-operation - just set the flag
-              escPressed = true;
-            }
-          }
-        } catch (error) {
-          // Silently ignore keypress handling errors
-        }
-      });
-
-    } catch (error) {
-      // If keypress setup fails, continue without ESC support
-      escHandlerSetup = false;
-    }
-  }
+  // For now, disable global ESC handling due to environment limitations
+  // In WSL and similar environments, TTY support is limited and clack prompts
+  // take exclusive control of stdin, making global keypress handling unreliable
+  
+  // Future improvement: Could explore integrating with clack's internal key handling
+  // or using a different approach for ESC detection that works better with prompts
+  
+  console.log('INFO: ESC key handling is limited in this environment. Use Ctrl+C for cancellation.');
 }
 
-// Context management functions
+// Context management functions (currently disabled but kept for compatibility)
 export function setMainMenuContext(inMenu: boolean): void {
   isInMainMenu = inMenu;
 }
 
-export function wasESCPressed(): boolean {
-  const pressed = escPressed;
-  escPressed = false; // Reset after checking
-  return pressed;
-}
-
-// Create a Promise that rejects when ESC is pressed
-export function createESCCancellablePromise<T>(operation: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    let completed = false;
-    
-    // Check for ESC every 50ms
-    const escCheck = setInterval(() => {
-      if (escPressed && !completed) {
-        completed = true;
-        escPressed = false; // Reset flag
-        clearInterval(escCheck);
-        reject(new Error('ESC_CANCELLED'));
-      }
-    }, 50);
-    
-    // Handle operation completion
-    operation
-      .then((result) => {
-        if (!completed) {
-          completed = true;
-          clearInterval(escCheck);
-          resolve(result);
-        }
-      })
-      .catch((error) => {
-        if (!completed) {
-          completed = true;
-          clearInterval(escCheck);
-          reject(error);
-        }
-      });
-  });
-}
 
 // Check for updates
 const pkg = require('../../package.json');

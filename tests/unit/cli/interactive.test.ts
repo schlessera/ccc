@@ -81,7 +81,7 @@ jest.mock('../../../src/cli/index', () => ({
 
 import * as p from '@clack/prompts';
 import { PathUtils } from '../../../src/utils/paths';
-import { setMainMenuContext, createESCCancellablePromise } from '../../../src/cli/index';
+import { setMainMenuContext } from '../../../src/cli/index';
 import { setupCommand } from '../../../src/cli/commands/setup';
 import { listCommand } from '../../../src/cli/commands/list';
 import { updateCommand } from '../../../src/cli/commands/update';
@@ -132,7 +132,7 @@ describe('interactiveMode', () => {
       await interactiveMode();
 
       expect(p.log.message).toHaveBeenCalledWith(
-        '[GRAY]Press Ctrl+C or ESC to exit • ESC returns to main menu from operations[/GRAY]'
+        '[GRAY]Press Ctrl+C to exit/cancel operations[/GRAY]'
       );
     });
 
@@ -260,7 +260,6 @@ describe('interactiveMode', () => {
 
       await interactiveMode(2);
 
-      expect(createESCCancellablePromise).toHaveBeenCalled();
       expect(statusCommand).toHaveBeenCalledWith({});
     });
 
@@ -363,17 +362,14 @@ describe('interactiveMode', () => {
   });
 
   describe('Error handling', () => {
-    it('should handle ESC cancellation', async () => {
+    it('should handle command cancellation through clack prompts', async () => {
       (PathUtils.isProjectManaged as jest.Mock).mockResolvedValue(false);
       (p.select as jest.Mock).mockResolvedValueOnce('setup').mockResolvedValueOnce(Symbol('cancel'));
       (p.isCancel as unknown as jest.Mock).mockReturnValueOnce(false).mockReturnValueOnce(true);
-      (setupCommand as jest.Mock).mockRejectedValue(new Error('ESC_CANCELLED'));
 
       await interactiveMode(2);
 
-      expect(p.log.info).toHaveBeenCalledWith(
-        '[YELLOW]Operation cancelled, returning to main menu[/YELLOW]'
-      );
+      expect(setupCommand).toHaveBeenCalledWith({});
     });
 
     it('should handle other errors gracefully', async () => {
@@ -442,16 +438,14 @@ describe('interactiveMode', () => {
       });
     });
 
-    it('should wrap command execution with ESC cancellable promise', async () => {
+    it('should execute commands directly without wrapper', async () => {
       (PathUtils.isProjectManaged as jest.Mock).mockResolvedValue(false);
       (p.select as jest.Mock).mockResolvedValueOnce('setup').mockResolvedValueOnce(Symbol('cancel'));
       (p.isCancel as unknown as jest.Mock).mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       await interactiveMode(2);
 
-      expect(createESCCancellablePromise).toHaveBeenCalledWith(
-        expect.any(Promise)
-      );
+      expect(setupCommand).toHaveBeenCalledWith({});
     });
   });
 
