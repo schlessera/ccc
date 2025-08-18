@@ -30,8 +30,11 @@ jest.mock('chalk', () => {
 
 jest.mock('fs-extra', () => ({
   ensureDir: jest.fn(),
-  writeFile: jest.fn(),
+  copyFile: jest.fn(),
+  writeFile: jest.fn(), // Still needed for system commands
+  access: jest.fn(),
   chmod: jest.fn(),
+  constants: { X_OK: 1 },
 }));
 
 jest.mock('path', () => ({
@@ -95,7 +98,9 @@ describe('installCommand', () => {
 
     // Re-setup fs mocks since they get cleared
     (fs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
+    (fs.copyFile as unknown as jest.Mock).mockResolvedValue(undefined);
     (fs.writeFile as unknown as jest.Mock).mockResolvedValue(undefined);
+    (fs.access as unknown as jest.Mock).mockResolvedValue(undefined);
     (fs.chmod as unknown as jest.Mock).mockResolvedValue(undefined);
     
     // Setup default p.isCancel behavior
@@ -120,9 +125,9 @@ describe('installCommand', () => {
 
       expect(p.intro).toHaveBeenCalledWith('[CYAN]📦 Install Global Commands[/CYAN]');
       expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        '/home/user/.local/bin/ccc',
-        expect.stringContaining('#!/usr/bin/env bash')
+      expect(fs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/home/user/.local/bin/ccc'
       );
       expect(fs.chmod).toHaveBeenCalledWith('/home/user/.local/bin/ccc', 0o755);
       expect(mockSpinner.start).toHaveBeenCalledWith('Installing global CCC command');
@@ -141,13 +146,13 @@ describe('installCommand', () => {
       await installCommand({ prefix: '/usr/local/bin' });
 
       expect(fs.ensureDir).toHaveBeenCalledWith('/usr/local/bin');
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        '/usr/local/bin/ccc',
-        expect.any(String)
+      expect(fs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/usr/local/bin/ccc'
       );
     });
 
-    it('should create wrapper script with correct source path', async () => {
+    it('should copy executable file instead of creating wrapper script', async () => {
       (PathUtils.exists as jest.Mock).mockResolvedValue(false);
       const mockSpinner = {
         start: jest.fn(),
@@ -157,12 +162,9 @@ describe('installCommand', () => {
 
       await installCommand({});
 
-      const writeCall = (fs.writeFile as unknown as jest.Mock).mock.calls[0];
-      const scriptContent = writeCall[1];
-      
-      expect(scriptContent).toContain('#!/usr/bin/env bash');
-      expect(scriptContent).toContain('CCC_SOURCE="/path/to/ccc"');
-      expect(scriptContent).toContain('exec "$CCC_SOURCE" "$@"');
+      // Should copy the file, not write a script
+      expect(fs.copyFile).toHaveBeenCalledWith('/path/to/ccc', '/home/user/.local/bin/ccc');
+      expect(fs.access).toHaveBeenCalledWith('/path/to/ccc', 1); // Check execute permission
     });
   });
 
@@ -217,7 +219,7 @@ describe('installCommand', () => {
 
       await installCommand({});
 
-      expect(fs.writeFile).toHaveBeenCalled();
+      expect(fs.copyFile).toHaveBeenCalled();
       expect(fs.chmod).toHaveBeenCalled();
     });
   });
@@ -298,7 +300,7 @@ describe('installCommand', () => {
         '[GREEN]✅ Installation Complete[/GREEN]'
       );
       expect(p.note).toHaveBeenCalledWith(
-        expect.stringContaining('Source: [GRAY]/path/to/ccc[/GRAY]'),
+        expect.stringContaining('Copied from: [GRAY]/path/to/ccc[/GRAY]'),
         '[GREEN]✅ Installation Complete[/GREEN]'
       );
     });
@@ -367,7 +369,7 @@ describe('installCommand', () => {
     it('should handle file write errors', async () => {
       (PathUtils.exists as jest.Mock).mockResolvedValue(false);
       (fs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
-      (fs.writeFile as unknown as jest.Mock).mockRejectedValue(new Error('Disk full'));
+      (fs.copyFile as unknown as jest.Mock).mockRejectedValue(new Error('Disk full'));
 
       const mockSpinner = {
         start: jest.fn(),
@@ -385,7 +387,9 @@ describe('installCommand', () => {
     it('should handle chmod errors', async () => {
       (PathUtils.exists as jest.Mock).mockResolvedValue(false);
       (fs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
-      (fs.writeFile as unknown as jest.Mock).mockResolvedValue(undefined);
+      (fs.copyFile as unknown as jest.Mock).mockResolvedValue(undefined);
+    (fs.writeFile as unknown as jest.Mock).mockResolvedValue(undefined);
+    (fs.access as unknown as jest.Mock).mockResolvedValue(undefined);
       (fs.chmod as unknown as jest.Mock).mockRejectedValue(new Error('Permission error'));
 
       const mockSpinner = {
@@ -410,50 +414,6 @@ describe('installCommand', () => {
     });
   });
 
-  describe('Wrapper script generation', () => {
-    it('should generate correct wrapper script content', async () => {
-      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
-      const mockSpinner = {
-        start: jest.fn(),
-        stop: jest.fn(),
-      };
-      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
-
-      await installCommand({});
-
-      const writeCall = (fs.writeFile as unknown as jest.Mock).mock.calls[0];
-      const scriptContent = writeCall[1];
-      
-      expect(scriptContent).toContain('#!/usr/bin/env bash');
-      expect(scriptContent).toContain('CCC Global Wrapper Script');
-      expect(scriptContent).toContain('Generated by CCC install command');
-      expect(scriptContent).toContain('SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"');
-      expect(scriptContent).toContain('CCC_SOURCE="/path/to/ccc"');
-      expect(scriptContent).toContain('if [ ! -f "$CCC_SOURCE" ]; then');
-      expect(scriptContent).toContain('echo "❌ CCC source not found: $CCC_SOURCE"');
-      expect(scriptContent).toContain('echo "Please reinstall CCC or run \'ccc install\' again"');
-      expect(scriptContent).toContain('exit 1');
-      expect(scriptContent).toContain('exec "$CCC_SOURCE" "$@"');
-    });
-
-    it('should use process.argv[1] as source path', async () => {
-      mockProcess.argv[1] = '/custom/path/to/ccc';
-      
-      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
-      const mockSpinner = {
-        start: jest.fn(),
-        stop: jest.fn(),
-      };
-      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
-
-      await installCommand({});
-
-      const writeCall = (fs.writeFile as unknown as jest.Mock).mock.calls[0];
-      const scriptContent = writeCall[1];
-      
-      expect(scriptContent).toContain('CCC_SOURCE="/custom/path/to/ccc"');
-    });
-  });
 
   describe('Integration scenarios', () => {
     it('should handle complete installation flow with PATH warning', async () => {
@@ -473,9 +433,9 @@ describe('installCommand', () => {
       
       // Should create directory and install file
       expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        '/home/user/.local/bin/ccc',
-        expect.stringContaining('#!/usr/bin/env bash')
+      expect(fs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/home/user/.local/bin/ccc'
       );
       expect(fs.chmod).toHaveBeenCalledWith('/home/user/.local/bin/ccc', 0o755);
       
@@ -515,9 +475,9 @@ describe('installCommand', () => {
       });
       
       // Should proceed with installation
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        '/usr/local/bin/ccc',
-        expect.any(String)
+      expect(fs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/usr/local/bin/ccc'
       );
     });
   });

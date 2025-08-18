@@ -40,7 +40,8 @@ describe('Install Command Coverage Boost', () => {
     mockOs.homedir.mockReturnValue('/home/user');
     mockPath.join.mockImplementation((...args) => args.join('/'));
     (mockFs.ensureDir as any).mockResolvedValue(undefined);
-    (mockFs.writeFile as any).mockResolvedValue(undefined);
+    (mockFs.copyFile as any).mockResolvedValue(undefined);
+    (mockFs.access as any).mockResolvedValue(undefined);
     (mockFs.chmod as any).mockResolvedValue(undefined);
     mockPathUtils.exists.mockResolvedValue(false);
   });
@@ -56,9 +57,9 @@ describe('Install Command Coverage Boost', () => {
       await installCommand({ prefix: customPrefix });
 
       expect(mockFs.ensureDir).toHaveBeenCalledWith(customPrefix);
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
-        '/custom/bin/ccc',
-        expect.any(String)
+      expect(mockFs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/custom/bin/ccc'
       );
     });
 
@@ -66,9 +67,9 @@ describe('Install Command Coverage Boost', () => {
       await installCommand({});
 
       expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
-        '/home/user/.local/bin/ccc',
-        expect.any(String)
+      expect(mockFs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        '/home/user/.local/bin/ccc'
       );
     });
   });
@@ -85,7 +86,7 @@ describe('Install Command Coverage Boost', () => {
         message: expect.stringContaining('already installed'),
         initialValue: false
       });
-      expect(mockFs.writeFile).toHaveBeenCalled();
+      expect(mockFs.copyFile).toHaveBeenCalled();
     });
 
     it('should handle already installed - reinstall declined', async () => {
@@ -159,7 +160,7 @@ describe('Install Command Coverage Boost', () => {
 
   describe('Error handling', () => {
     it('should handle file system errors during installation', async () => {
-      (mockFs.writeFile as any).mockRejectedValue(new Error('Permission denied'));
+      (mockFs.copyFile as any).mockRejectedValue(new Error('Permission denied'));
       const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
       await installCommand({});
@@ -197,35 +198,38 @@ describe('Install Command Coverage Boost', () => {
     });
   });
 
-  describe('Wrapper script creation', () => {
-    it('should create wrapper script with correct content', async () => {
-      const expectedScript = expect.stringContaining('#!/usr/bin/env bash');
-      
+  describe('File copying and permissions', () => {
+    it('should copy source executable to destination', async () => {
       await installCommand({});
 
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expectedScript
+      expect(mockFs.copyFile).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        expect.stringContaining('ccc')
       );
     });
 
-    it('should include source path in wrapper script', async () => {
-      const sourcePath = '/path/to/ccc';
-      process.argv[1] = sourcePath;
-      
+    it('should check source file permissions', async () => {
       await installCommand({});
 
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringContaining(sourcePath)
+      expect(mockFs.access).toHaveBeenCalledWith(
+        '/path/to/ccc',
+        (fs.constants as any).X_OK
       );
     });
 
-    it('should set correct permissions on wrapper script', async () => {
+    it('should make source executable if not already', async () => {
+      (mockFs.access as any).mockRejectedValue(new Error('Not executable'));
+      
+      await installCommand({});
+
+      expect(mockFs.chmod).toHaveBeenCalledWith('/path/to/ccc', 0o755);
+    });
+
+    it('should set correct permissions on destination file', async () => {
       await installCommand({});
 
       expect(mockFs.chmod).toHaveBeenCalledWith(
-        expect.any(String),
+        expect.stringContaining('ccc'),
         0o755
       );
     });
