@@ -10,6 +10,9 @@
 - **Smart Detection** - Automatically detects project type
 - **Content Preservation** - Preserves custom content during updates
 - **Backup System** - Automatic versioned backups
+- **Agent Management** - Add specialized AI agents to projects
+- **Command System** - Custom slash commands for Claude Code
+- **Hook System** - Automated workflows triggered by Claude Code events
 
 ## 🚀 Quick Start
 
@@ -22,6 +25,8 @@ npx ccc setup              # Setup current project
 npx ccc list               # List managed projects  
 npx ccc update             # Update templates
 npx ccc add-agent          # Add AI agents
+npx ccc add-command        # Add custom commands
+npx ccc add-hook           # Add automation hooks
 ```
 
 ## 📦 Installation
@@ -38,17 +43,15 @@ npm install -g claude-code-central
 ccc
 ```
 
-### Install Global Commands
-Make commands available from anywhere:
+### Install Global CCC
+Make the `ccc` command and system commands available from anywhere:
 ```bash
 npx ccc install
 ```
 
 This installs:
-- `cc-setup` - Setup project from any directory
-- `cc-status` - Check project configuration status
-- `cc-update` - Update project templates
-- `cc-unlink` - Remove central management
+- The main CCC executable globally, allowing you to run `ccc` from any directory
+- System commands (ccc:*) that are available globally in Claude Code
 
 ## 📚 Commands
 
@@ -59,21 +62,17 @@ This installs:
 | `update` | Update project templates |
 | `unlink` | Remove central management from project |
 | `add-agent` | Add AI agent to current project |
-| `add-command` | Add custom command to current project |
-| `install` | Install global management commands |
+| `add-command` | Add project-specific command to current project |
+| `add-hook` | Add automation hook to current project |
+| `install` | Install global CCC executable and system commands |
 | `cleanup` | Clean up old backups |
 | `validate` | Validate system integrity |
 | `status` | Check current project status |
 
 ## 🎨 Available Templates
 
-- **🏗️ engineering** - Full stack with testing & CI/CD
 - **🌐 web-dev** - Frontend frameworks & build tools
-- **🔬 data-science** - ML/AI and data analysis
-- **⚙️ devops** - Infrastructure & orchestration
-- **📊 seo** - Content optimization & analytics
 - **✨ custom** - Minimal starting point
-- **👥 dev-team** - Multi-agent development team
 
 ## 📁 Project Structure
 
@@ -85,7 +84,8 @@ your-project/
 │   ├── settings.json     - Permissions and environment
 │   ├── .mcp.json        - MCP server configurations
 │   ├── commands/        - Custom commands
-│   └── agents/          - AI agents
+│   ├── agents/          - AI agents
+│   └── hooks/           - Automation hooks
 └── CLAUDE.md            → Symlink to central instructions
 ```
 

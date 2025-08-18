@@ -13,6 +13,8 @@ export interface Command {
 
 export class CommandLoader {
   private commandsCache: Map<string, Command> = new Map();
+  private projectCommandsCache: Map<string, Command> = new Map();
+  private systemCommandsCache: Map<string, Command> = new Map();
 
   async loadCommands(): Promise<Command[]> {
     const userConfig = UserConfigManager.getInstance();
@@ -38,6 +40,62 @@ export class CommandLoader {
     const systemCount = combinedCommands.filter(c => c.source === 'system').length;
     const userCount = combinedCommands.filter(c => c.source === 'user').length;
     Logger.debug(`Loaded ${commands.length} commands (${systemCount} system, ${userCount} user)`);
+    
+    return commands;
+  }
+
+  async loadProjectCommands(): Promise<Command[]> {
+    const userConfig = UserConfigManager.getInstance();
+    const combinedCommands = await userConfig.getCombinedProjectCommands();
+    
+    const commands: Command[] = [];
+    
+    // Load commands from combined sources (user takes precedence over system)
+    for (const commandItem of combinedCommands) {
+      const command = await this.loadCommandItem(commandItem.name, commandItem.path);
+      if (command) {
+        // Add source information to command for debugging
+        (command as any).source = commandItem.source;
+        commands.push(command);
+      }
+    }
+    
+    // Cache project commands
+    commands.forEach(command => {
+      this.projectCommandsCache.set(command.name, command);
+    });
+    
+    const systemCount = combinedCommands.filter(c => c.source === 'system').length;
+    const userCount = combinedCommands.filter(c => c.source === 'user').length;
+    Logger.debug(`Loaded ${commands.length} project commands (${systemCount} system, ${userCount} user)`);
+    
+    return commands;
+  }
+
+  async loadSystemCommands(): Promise<Command[]> {
+    const userConfig = UserConfigManager.getInstance();
+    const combinedCommands = await userConfig.getCombinedSystemCommands();
+    
+    const commands: Command[] = [];
+    
+    // Load commands from combined sources (user takes precedence over system)
+    for (const commandItem of combinedCommands) {
+      const command = await this.loadCommandItem(commandItem.name, commandItem.path);
+      if (command) {
+        // Add source information to command for debugging
+        (command as any).source = commandItem.source;
+        commands.push(command);
+      }
+    }
+    
+    // Cache system commands
+    commands.forEach(command => {
+      this.systemCommandsCache.set(command.name, command);
+    });
+    
+    const systemCount = combinedCommands.filter(c => c.source === 'system').length;
+    const userCount = combinedCommands.filter(c => c.source === 'user').length;
+    Logger.debug(`Loaded ${commands.length} system commands (${systemCount} system, ${userCount} user)`);
     
     return commands;
   }

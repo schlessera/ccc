@@ -523,4 +523,211 @@ describe('UserConfigManager', () => {
       expect(items).toEqual([]);
     });
   });
+
+  describe('New methods for command filtering', () => {
+    beforeEach(() => {
+      manager = UserConfigManager.getInstance();
+      
+      // Setup basic mocks for combined items testing
+      (PathUtils.exists as jest.Mock).mockResolvedValue(true);
+      (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+        if (dirPath.includes('commands/ccc')) {
+          return Promise.resolve(['global-gitignore.md', 'system-command.md', 'user-system.md']);
+        } else if (dirPath.endsWith('commands') && !dirPath.includes('commands/ccc')) {
+          return Promise.resolve(['ccc', 'regular-command.md', 'another-command', 'user-command.md']);
+        }
+        return Promise.resolve([]);
+      });
+      
+      (fs.stat as unknown as jest.Mock).mockImplementation((itemPath) => {
+        if (itemPath.includes('.md')) {
+          return Promise.resolve({ isDirectory: () => false, isFile: () => true });
+        } else {
+          return Promise.resolve({ isDirectory: () => true, isFile: () => false });
+        }
+      });
+    });
+
+    describe('getCombinedProjectCommands', () => {
+      it('should exclude ccc subdirectory from project commands', async () => {
+        const commands = await manager.getCombinedProjectCommands();
+        
+        const commandNames = commands.map(cmd => cmd.name);
+        expect(commandNames).toContain('regular-command');
+        expect(commandNames).toContain('another-command');
+        expect(commandNames).toContain('user-command');
+        expect(commandNames).not.toContain('ccc');
+      });
+
+      it('should handle system directory with no ccc subdirectory', async () => {
+        (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+          if (dirPath.endsWith('commands')) {
+            return Promise.resolve(['regular-command.md', 'another-command']);
+          }
+          return Promise.resolve([]);
+        });
+
+        const commands = await manager.getCombinedProjectCommands();
+        
+        const commandNames = commands.map(cmd => cmd.name);
+        expect(commandNames).toContain('regular-command');
+        expect(commandNames).toContain('another-command');
+      });
+    });
+
+    describe('getCombinedSystemCommands', () => {
+      it('should load commands only from ccc subdirectory', async () => {
+        const commands = await manager.getCombinedSystemCommands();
+        
+        const commandNames = commands.map(cmd => cmd.name);
+        expect(commandNames).toContain('global-gitignore');
+        expect(commandNames).toContain('system-command');
+        expect(commandNames).toContain('user-system');
+      });
+
+      it('should prioritize user ccc commands over system ccc commands', async () => {
+        (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+          if (dirPath.includes('commands/ccc')) {
+            return Promise.resolve(['global-gitignore.md']);
+          }
+          return Promise.resolve([]);
+        });
+
+        const commands = await manager.getCombinedSystemCommands();
+        
+        expect(commands).toHaveLength(1);
+        expect(commands[0].name).toBe('global-gitignore');
+      });
+
+      it('should handle missing ccc subdirectories', async () => {
+        (PathUtils.exists as jest.Mock).mockResolvedValue(false);
+        
+        const commands = await manager.getCombinedSystemCommands();
+        
+        expect(commands).toEqual([]);
+      });
+    });
+
+    describe('getCombinedItemsFromSubdir', () => {
+      it('should load items from specified subdirectory', async () => {
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItemsFromSubdir(
+          systemDir,
+          userDir,
+          'ccc',
+          true
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('global-gitignore');
+        expect(itemNames).toContain('system-command');
+        expect(itemNames).toContain('user-system');
+      });
+
+      it('should handle directories only when supportFiles is false', async () => {
+        (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+          if (dirPath.includes('ccc')) {
+            return Promise.resolve(['dir1', 'file.md', 'dir2']);
+          }
+          return Promise.resolve([]);
+        });
+
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItemsFromSubdir(
+          systemDir,
+          userDir, 
+          'ccc',
+          false
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('dir1');
+        expect(itemNames).toContain('dir2');
+        expect(itemNames).not.toContain('file');
+      });
+
+      it('should handle both directories and markdown files when supportFiles is true', async () => {
+        (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+          if (dirPath.includes('ccc')) {
+            return Promise.resolve(['dir1', 'file.md', 'dir2']);
+          }
+          return Promise.resolve([]);
+        });
+
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItemsFromSubdir(
+          systemDir,
+          userDir,
+          'ccc', 
+          true
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('dir1');
+        expect(itemNames).toContain('dir2');
+        expect(itemNames).toContain('file');
+      });
+    });
+
+    describe('getCombinedItems with excludePattern', () => {
+      it('should exclude items matching the exclude pattern', async () => {
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItems(
+          systemDir,
+          userDir,
+          true,
+          'ccc'
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('regular-command');
+        expect(itemNames).toContain('another-command');
+        expect(itemNames).toContain('user-command');
+        expect(itemNames).not.toContain('ccc');
+      });
+
+      it('should not exclude anything when excludePattern is not provided', async () => {
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItems(
+          systemDir,
+          userDir,
+          true
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('regular-command');
+        expect(itemNames).toContain('another-command');
+        expect(itemNames).toContain('user-command');
+        expect(itemNames).toContain('ccc');
+      });
+
+      it('should handle exclude pattern in user directory as well', async () => {
+        (fs.readdir as unknown as jest.Mock).mockImplementation((dirPath) => {
+          if (dirPath.endsWith('commands')) {
+            return Promise.resolve(['ccc', 'system-cmd.md', 'user-cmd.md']);
+          }
+          return Promise.resolve([]);
+        });
+
+        const systemDir = manager.getSystemCommandsDir();
+        const userDir = manager.getUserCommandsDir();
+        const items = await manager.getCombinedItems(
+          systemDir,
+          userDir,
+          true,
+          'ccc'
+        );
+        
+        const itemNames = items.map(item => item.name);
+        expect(itemNames).toContain('system-cmd');
+        expect(itemNames).toContain('user-cmd');
+        expect(itemNames).not.toContain('ccc');
+      });
+    });
+  });
 });

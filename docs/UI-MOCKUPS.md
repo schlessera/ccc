@@ -298,11 +298,8 @@ Installing Global Commands...
 Installation Details:
   Target: ~/.claude/commands/
   
-  Commands to install:
-    • cc-setup   - Setup project from any directory
-    • cc-status  - Check project configuration status
-    • cc-update  - Update project templates
-    • cc-unlink  - Remove central management
+  Global CCC installation:
+    • ccc - Main CCC executable available from any directory
   
   Shell integration:
     ✓ Bash profile will be updated
@@ -311,16 +308,13 @@ Installation Details:
 ? Proceed with installation? (Y/n) Y
 
 Installing...
-  ✓ Created ~/.claude/commands/ directory
-  ✓ Installed cc-setup
-  ✓ Installed cc-status
-  ✓ Installed cc-update
-  ✓ Installed cc-unlink
+  ✓ Created installation directory
+  ✓ Installed global ccc command
   ✓ Updated shell profile
 
 ✅ Installation complete!
 
-Run 'source ~/.bashrc' or restart your terminal to use commands
+Run 'source ~/.bashrc' or restart your terminal to use the global ccc command
 ```
 
 ---

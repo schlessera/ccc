@@ -34,13 +34,23 @@ The system creates a centralized storage repository that manages configurations 
 - **Benefits**: Instant propagation of updates, no sync required
 
 ### 4. Command System
-- **Purpose**: Provide globally accessible commands for project management
-- **Location**: Commands installed to user's `~/.claude/commands/` directory
-- **Accessibility**: Available from any directory once installed
+- **Purpose**: Provide custom slash commands for Claude Code
+- **Types**: 
+  - **Project Commands**: Stored in project's `.claude/commands/` or user's `~/.ccc/commands/` directory
+  - **System Commands**: Stored in `~/.ccc/commands/ccc/` directory (installed globally)
+- **Usage**: Available as slash commands within Claude Code (e.g., `/custom-command`, `/ccc:system-command`)
 
 ### 5. Agent System
 - **Purpose**: Provide a set of predefined custom sub-agents that can be added to projects
 - **Location**: `agents/` directory containing individual agents with their frontmatter metadata
+
+### 6. Hook System
+- **Purpose**: Provide automated workflows triggered by Claude Code events
+- **Types**:
+  - **System Hooks**: Stored in `~/.ccc/hooks/` directory (global)
+  - **Project Hooks**: Stored in project's `.claude/hooks/` directory
+- **Trigger Events**: PreToolUse, PostToolUse, UserPromptSubmit, Notification, Stop, SubagentStop, PreCompact, SessionStart
+- **Execution**: Shell commands executed when events match configured patterns
 
 ## File Formats and Structures
 
@@ -116,10 +126,7 @@ LAST_UPDATE=ISO-8601-timestamp
 - **Location**: Project storage directory
 - **Format**: Shell-compatible key=value pairs
 
-### Agent Files (Optional)
-
-These are the agents that are part of the templates (as opposed to the
-individual agents that can be added to existing projects)
+### Agent Files
 
 #### agents/*.md
 ```markdown
@@ -128,14 +135,79 @@ name: agent-identifier
 description: Agent purpose
 model: model-type
 color: display-color
+tools: comma-separated-list
 ---
 # Agent Name
 
 Agent instructions and behavior specifications
 ```
 - **Purpose**: Define specialized AI agents for specific roles
-- **Location**: `agents/` subdirectory in templates or projects
+- **Location**: `agents/` subdirectory in templates, projects, or system-wide
 - **Format**: Markdown with YAML frontmatter
+- **Properties**:
+  - `name`: Unique identifier for the agent
+  - `description`: Human-readable description of agent's purpose
+  - `model`: Claude model to use (optional)
+  - `color`: Display color in UI (optional)
+  - `tools`: Comma-separated list of allowed tools (optional)
+
+### Command Files
+
+#### commands/**/*.md
+```markdown
+---
+name: command-name
+description: Command description
+allowed-tools: ["Read", "Write", "Edit"]
+argument-hint: "Description of arguments"
+---
+# Command Name
+
+Command instructions and behavior.
+
+Use ${1}, ${2}, etc. for argument placeholders in the content.
+```
+- **Purpose**: Define custom slash commands for Claude Code
+- **Location**: `commands/` directories at various levels
+- **Format**: Markdown with YAML frontmatter
+- **Properties**:
+  - `name`: Command name (used as /command-name)
+  - `description`: Human-readable description
+  - `allowed-tools`: Array of tools the command can use
+  - `argument-hint`: Help text for command arguments
+
+### Hook Files
+
+#### hooks/*/settings.json
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "description": "Log file operations",
+            "command": "echo 'File operation: $1'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": {
+      "Edit": "echo 'File edited: $1'"
+    }
+  }
+}
+```
+- **Purpose**: Define automated workflows triggered by Claude Code events
+- **Location**: `hooks/*/settings.json` in system or project directories
+- **Format**: JSON configuration with event types and matchers
+- **Event Types**: PreToolUse, PostToolUse, UserPromptSubmit, Notification, Stop, SubagentStop, PreCompact, SessionStart
+- **Formats**:
+  - **Array format**: For complex hooks with matchers
+  - **Object format**: For simple tool-to-command mappings
 
 ## Directory Structure
 
@@ -166,6 +238,9 @@ ccc/
 │   └── **/*.md
 ├── agents/ (individual agents not part of templates)
 │   └── *.md
+├── hooks/ (system-level hooks)
+│   └── */
+│       └── settings.json
 └── scripts/
     └── [operation scripts]
 
@@ -222,24 +297,31 @@ project-location/
   - Last update time
   - Storage size
 
-### Install Management Commands
-- **Purpose**: Make management commands globally available
-- **Commands Installed**:
-  - `cc-setup`: Setup project from current directory
-  - `cc-status`: Check project status
-  - `cc-update`: Update project templates
-  - `cc-unlink`: Remove central management
-- **Location**: User's `~/.claude/commands/` directory
+### Install Global CCC
+- **Purpose**: Make the main CCC executable and system commands globally available
+- **Installation**: 
+  - Creates a global `ccc` command accessible from any directory
+  - Installs system commands from `commands/ccc/` to `~/.ccc/commands/ccc/`
+- **Usage**: 
+  - Allows running `ccc setup`, `ccc status`, etc. from anywhere
+  - System commands (ccc:*) available globally in Claude Code
 
-### Add Custom Command
-- **Purpose**: Add a predefined custom command to the current project
-- **Source**: `ccc/commands/**/*.md`
+### Add Project Command
+- **Purpose**: Add a predefined project-specific command to the current project
+- **Source**: Non-ccc directories in `commands/**/*.md` (excludes system commands)
+- **Note**: System commands (ccc/*) are installed globally and not available for project addition
 - **Destination**: Project's `.claude/commands/` directory
 
 ### Add Custom Agent
 - **Purpose**: Add a predefined custom sub-agent to the current project
 - **Source**: `ccc/agents/*.md`
 - **Destination**: Project's `.claude/agents/` directory
+
+### Add Custom Hook
+- **Purpose**: Add a predefined hook or create custom automation for the current project
+- **Source**: System hooks from `~/.ccc/hooks/*/settings.json`
+- **Destination**: Project's `.claude/hooks/` directory or project settings.json
+- **Types**: PreToolUse, PostToolUse, UserPromptSubmit, and other Claude Code events
 
 ### Cleanup Backups
 - **Purpose**: Manage backup accumulation
@@ -293,13 +375,8 @@ project-location/
 ## Template System
 
 ### Template Types
-- **engineering**: Development with testing and CI/CD
 - **web-dev**: Frontend frameworks and build tools
-- **data-science**: ML/AI and data analysis
-- **devops**: Infrastructure and orchestration
-- **seo**: Content optimization
 - **custom**: Minimal starting point
-- **dev-team-agents**: Multi-agent development team
 
 ### Template Extension
 - Add new directory to `templates/`
@@ -333,6 +410,33 @@ project-location/
 - Template versions in `meta.json`
 - Update history through backup timestamps
 - No external version control required
+
+## User Configuration Management
+
+### User Configuration Directory
+- **Location**: `~/.ccc/` (or `$CCC_CONFIG_DIR` if set)
+- **Purpose**: Centralized user-level configurations and global system management
+- **Structure**:
+  - `storage/` - Individual project configurations
+  - `templates/` - System-wide templates
+  - `commands/` - User-level commands
+  - `agents/` - User-level agents
+  - `hooks/` - User-level hooks
+
+### Precedence Rules
+1. **Project Level**: `.claude/` directory configurations (highest priority)
+2. **User Level**: `~/.ccc/` directory configurations
+3. **System Level**: Built-in templates and defaults (lowest priority)
+
+### User Override Capabilities
+- Users can create custom templates in `~/.ccc/templates/`
+- Users can add commands in `~/.ccc/commands/` available to all projects
+- Users can define agents in `~/.ccc/agents/` for reuse across projects
+- Users can set up hooks in `~/.ccc/hooks/` for system-wide automation
+
+### Configuration Environment
+- **CCC_CONFIG_DIR**: Environment variable to override default config location
+- **Portable Setup**: All configurations contained within single directory for easy backup/sync
 
 ## Key Design Principles
 

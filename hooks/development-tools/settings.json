@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*test.*",
+        "hooks": [
+          {
+            "type": "command", 
+            "description": "Run tests before processing test-related prompts",
+            "command": "npm test",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": {
+      "Bash": "echo \"[HOOK] Running command: $1\""
+    },
+    "PostToolUse": {
+      "Edit": "echo \"[HOOK] File modified, consider running tests\""
+    }
+  }
+}

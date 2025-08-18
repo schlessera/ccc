@@ -27,7 +27,10 @@ describe('Add Command Branch Coverage Boost', () => {
     
     mockLoader = {
       loadCommands: jest.fn(),
+      loadProjectCommands: jest.fn(),
+      loadSystemCommands: jest.fn(),
       getCommand: jest.fn(),
+      listAvailableCommands: jest.fn(),
     } as any;
     
     mockCommandLoader.mockImplementation(() => mockLoader);
@@ -50,7 +53,7 @@ describe('Add Command Branch Coverage Boost', () => {
 
   describe('Branch Coverage: Cancellation paths', () => {
     it('should hit command selection cancellation (lines 97-98)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([
+      mockLoader.loadProjectCommands.mockResolvedValue([
         { name: 'test-cmd', description: 'Test', content: 'test' }
       ]);
       mockPrompts.select.mockResolvedValue(Symbol.for('clack:cancel'));
@@ -62,7 +65,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should hit name cancellation (lines 118-119)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       mockPrompts.text.mockResolvedValue(Symbol.for('clack:cancel'));
       mockPrompts.isCancel
@@ -75,7 +78,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should hit description cancellation (lines 128-129)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       
       mockPrompts.text
@@ -93,7 +96,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should hit allowedTools cancellation (lines 139-140)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       
       mockPrompts.text
@@ -113,7 +116,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should hit argumentHint cancellation (lines 150-151)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       
       mockPrompts.text
@@ -135,7 +138,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should hit content cancellation (lines 164-165)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       
       mockPrompts.text
@@ -161,7 +164,7 @@ describe('Add Command Branch Coverage Boost', () => {
 
   describe('Branch Coverage: Validation paths', () => {
     it('should hit validation error branches (lines 109-113, 158-159)', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       mockPrompts.isCancel.mockReturnValue(false);
       
@@ -275,7 +278,7 @@ describe('Add Command Branch Coverage Boost', () => {
 
   describe('Branch Coverage: Command properties', () => {
     it('should handle command with all optional properties', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       mockPrompts.isCancel.mockReturnValue(false);
       
@@ -315,7 +318,7 @@ describe('Add Command Branch Coverage Boost', () => {
 
   describe('Branch Coverage: Edge cases', () => {
     it('should handle empty commands list for selection', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       mockPrompts.isCancel.mockReturnValue(false);
       
@@ -329,7 +332,7 @@ describe('Add Command Branch Coverage Boost', () => {
       await addCommandCommand({});
 
       expect(mockPrompts.select).toHaveBeenCalledWith({
-        message: 'Select a command to add',
+        message: 'Select a project command to add',
         options: [
           {
             value: 'custom',
@@ -341,7 +344,7 @@ describe('Add Command Branch Coverage Boost', () => {
     });
 
     it('should handle command with empty string properties', async () => {
-      mockLoader.loadCommands.mockResolvedValue([]);
+      mockLoader.loadProjectCommands.mockResolvedValue([]);
       mockPrompts.select.mockResolvedValue('custom');
       mockPrompts.isCancel.mockReturnValue(false);
       

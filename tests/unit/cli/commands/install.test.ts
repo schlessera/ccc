@@ -49,6 +49,26 @@ jest.mock('../../../../src/utils/paths', () => ({
   }
 }));
 
+const mockLoadSystemCommands = jest.fn();
+
+jest.mock('../../../../src/core/commands/loader', () => ({
+  CommandLoader: jest.fn().mockImplementation(() => ({
+    loadSystemCommands: mockLoadSystemCommands,
+  }))
+}));
+
+const mockEnsureUserConfigDir = jest.fn();
+const mockGetUserCommandsDir = jest.fn(() => '/home/user/.ccc/commands');
+
+jest.mock('../../../../src/core/config/user-manager', () => ({
+  UserConfigManager: {
+    getInstance: jest.fn(() => ({
+      ensureUserConfigDir: mockEnsureUserConfigDir,
+      getUserCommandsDir: mockGetUserCommandsDir,
+    }))
+  }
+}));
+
 import * as p from '@clack/prompts';
 import * as fs from 'fs-extra';
 import { PathUtils } from '../../../../src/utils/paths';
@@ -498,6 +518,139 @@ describe('installCommand', () => {
       expect(fs.writeFile).toHaveBeenCalledWith(
         '/usr/local/bin/ccc',
         expect.any(String)
+      );
+    });
+  });
+
+  describe('System commands installation', () => {
+    it('should install system commands when available', async () => {
+      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
+      
+      const mockSystemCommands = [
+        { name: 'global-gitignore', description: 'Configure global gitignore', content: 'test content', allowedTools: 'Bash, Read, Write' },
+        { name: 'test-command', description: 'Test command', content: 'test content 2' }
+      ];
+      
+      mockLoadSystemCommands.mockResolvedValue(mockSystemCommands);
+      mockEnsureUserConfigDir.mockResolvedValue(undefined);
+      
+      const mockSpinner = {
+        start: jest.fn(),
+        stop: jest.fn(),
+      };
+      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
+
+      await installCommand({});
+
+      // First ensureDir call is for /home/user/.local/bin (install path)
+      // Second ensureDir call is for /home/user/.ccc/commands/ccc (system commands)
+      expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
+      expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.ccc/commands/ccc');
+      
+      // First writeFile call is for the main ccc executable
+      // Subsequent calls are for system commands
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.ccc/commands/ccc/global-gitignore.md',
+        expect.stringContaining('description: Configure global gitignore'),
+        'utf-8'
+      );
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.ccc/commands/ccc/test-command.md',
+        expect.stringContaining('description: Test command'),
+        'utf-8'
+      );
+      
+      expect(p.note).toHaveBeenCalledWith(
+        expect.stringContaining('System commands installed:'),
+        '[GREEN]✅ Installation Complete[/GREEN]'
+      );
+    });
+
+    it('should handle no system commands available', async () => {
+      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
+      
+      mockLoadSystemCommands.mockResolvedValue([]);
+      mockEnsureUserConfigDir.mockResolvedValue(undefined);
+      
+      const mockSpinner = {
+        start: jest.fn(),
+        stop: jest.fn(),
+      };
+      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
+
+      await installCommand({});
+
+      expect(p.note).toHaveBeenCalledWith(
+        expect.stringContaining('• No system commands found'),
+        '[GREEN]✅ Installation Complete[/GREEN]'
+      );
+    });
+
+    it('should handle system commands installation error gracefully', async () => {
+      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
+      
+      mockLoadSystemCommands.mockRejectedValue(new Error('Test error'));
+      mockEnsureUserConfigDir.mockResolvedValue(undefined);
+      
+      // Mock console.warn to prevent test output pollution
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+      
+      const mockSpinner = {
+        start: jest.fn(),
+        stop: jest.fn(),
+      };
+      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
+
+      await installCommand({});
+
+      expect(console.warn).toHaveBeenCalledWith('Warning: Failed to install system commands:', expect.any(Error));
+      
+      // Restore console.warn
+      console.warn = originalWarn;
+      
+      expect(p.note).toHaveBeenCalledWith(
+        expect.stringContaining('• No system commands found'),
+        '[GREEN]✅ Installation Complete[/GREEN]'
+      );
+    });
+
+    it('should create command files with proper frontmatter formatting', async () => {
+      (PathUtils.exists as jest.Mock).mockResolvedValue(false);
+      
+      const mockSystemCommands = [
+        { 
+          name: 'test-cmd', 
+          description: 'Test description',
+          allowedTools: 'Bash, Read',
+          argumentHint: 'test hint',
+          content: 'command content here'
+        }
+      ];
+      
+      mockLoadSystemCommands.mockResolvedValue(mockSystemCommands);
+      mockEnsureUserConfigDir.mockResolvedValue(undefined);
+      
+      const mockSpinner = {
+        start: jest.fn(),
+        stop: jest.fn(),
+      };
+      (p.spinner as jest.Mock).mockReturnValue(mockSpinner);
+
+      await installCommand({});
+
+      const expectedContent = `---
+description: Test description
+allowed-tools: Bash, Read
+argument-hint: test hint
+---
+
+command content here`;
+
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.ccc/commands/ccc/test-cmd.md',
+        expectedContent,
+        'utf-8'
       );
     });
   });

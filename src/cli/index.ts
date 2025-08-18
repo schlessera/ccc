@@ -39,6 +39,18 @@ export function setMainMenuContext(inMenu: boolean): void {
   isInMainMenu = inMenu;
 }
 
+export function wasESCPressed(): boolean {
+  // Currently always returns false as ESC handling is disabled
+  // due to environment limitations with TTY support
+  return false;
+}
+
+export function createESCCancellablePromise<T>(promise: Promise<T>): Promise<T> {
+  // Currently just returns the original promise as ESC handling is disabled
+  // In the future, this could wrap the promise with ESC cancellation logic
+  return promise;
+}
+
 
 // Check for updates
 const pkg = require('../../package.json');
@@ -103,9 +115,9 @@ program
 // Add command command
 program
   .command('add-command')
-  .description('Add custom command to current project')
+  .description('Add project-specific command to current project')
   .option('-c, --command <name>', 'Command name to add')
-  .option('--list', 'List available commands')
+  .option('--list', 'List available project commands')
   .action(addCommandCommand);
 
 // Add hook command
@@ -119,7 +131,7 @@ program
 // Install command
 program
   .command('install')
-  .description('Install global management commands')
+  .description('Install global CCC executable and system commands')
   .option('--prefix <path>', 'Installation prefix')
   .action(installCommand);
 

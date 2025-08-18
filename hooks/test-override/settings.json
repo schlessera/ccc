@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "description": "Log file read operations",
+            "command": "echo \"Reading file: $1\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": {
+      "Write": "echo \"File written: $1\"",
+      "Edit": "echo \"File edited: $1\""
+    }
+  }
+}

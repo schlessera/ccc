@@ -57,10 +57,10 @@ export async function addCommandCommand(options: AddCommandOptions): Promise<voi
 }
 
 async function showAvailableCommands(commandLoader: CommandLoader): Promise<void> {
-  const commands = await commandLoader.loadCommands();
+  const commands = await commandLoader.loadProjectCommands();
   
   if (commands.length === 0) {
-    p.note('No commands available. Add commands to ~/.ccc/commands or system commands directory.', '⚡ Available Commands');
+    p.note('No project commands available. Add commands to ~/.ccc/commands or system commands directory.', '⚡ Available Project Commands');
     return;
   }
 
@@ -69,11 +69,11 @@ async function showAvailableCommands(commandLoader: CommandLoader): Promise<void
     return `${chalk.cyan(cmd.name.padEnd(15))} ${chalk.gray(cmd.description || 'No description')} ${source}`;
   });
 
-  p.note(commandLines.join('\n'), '⚡ Available Commands');
+  p.note(commandLines.join('\n'), '⚡ Available Project Commands');
 }
 
 async function selectCommandOption(commandLoader: CommandLoader): Promise<string | null> {
-  const commands = await commandLoader.loadCommands();
+  const commands = await commandLoader.loadProjectCommands();
   
   const options = [
     ...commands.map(cmd => ({
@@ -89,7 +89,7 @@ async function selectCommandOption(commandLoader: CommandLoader): Promise<string
   ];
 
   const choice = await p.select({
-    message: 'Select a command to add',
+    message: 'Select a project command to add',
     options
   });
 

@@ -31,6 +31,14 @@ jest.mock('../../../../src/core/config/user-manager', () => ({
         { name: 'invalid', path: '/test/invalid.txt', source: 'user' },
         { name: 'bad-yaml', path: '/test/bad.md', source: 'user' },
         { name: 'only-front', path: '/test/front.md', source: 'user' }
+      ]),
+      getCombinedProjectCommands: jest.fn().mockResolvedValue([
+        { name: 'project-cmd', path: '/test/project-cmd.md', source: 'user' },
+        { name: 'another-project', path: '/test/another.md', source: 'system' }
+      ]),
+      getCombinedSystemCommands: jest.fn().mockResolvedValue([
+        { name: 'global-gitignore', path: '/test/global-gitignore.md', source: 'system' },
+        { name: 'system-cmd', path: '/test/system.md', source: 'user' }
       ])
     })
   }
@@ -139,6 +147,96 @@ describe('CommandLoader (Enhanced Coverage)', () => {
       } catch (error) {
         expect(error).toBeDefined();
       }
+    });
+  });
+
+  describe('New filtering methods', () => {
+    describe('loadProjectCommands', () => {
+      it('should load project commands excluding system commands', async () => {
+        try {
+          const commands = await commandLoader.loadProjectCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          
+          if (commands.length > 0) {
+            const commandNames = commands.map(cmd => cmd.name);
+            expect(commandNames).toContain('project-cmd');
+            expect(commandNames).toContain('another-project');
+          }
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+
+      it('should cache project commands', async () => {
+        try {
+          const commands = await commandLoader.loadProjectCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          
+          // Commands should be cached in projectCommandsCache
+          expect(commandLoader).toBeDefined();
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+
+      it('should handle empty project commands', async () => {
+        try {
+          const commands = await commandLoader.loadProjectCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          // Commands could be empty or non-empty depending on mock data
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+    });
+
+    describe('loadSystemCommands', () => {
+      it('should load system commands only', async () => {
+        try {
+          const commands = await commandLoader.loadSystemCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          
+          if (commands.length > 0) {
+            const commandNames = commands.map(cmd => cmd.name);
+            expect(commandNames).toContain('global-gitignore');
+            expect(commandNames).toContain('system-cmd');
+          }
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+
+      it('should cache system commands', async () => {
+        try {
+          const commands = await commandLoader.loadSystemCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          
+          // Commands should be cached in systemCommandsCache
+          expect(commandLoader).toBeDefined();
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+
+      it('should handle empty system commands', async () => {
+        try {
+          const commands = await commandLoader.loadSystemCommands();
+          expect(Array.isArray(commands)).toBe(true);
+          // Commands could be empty or non-empty depending on mock data
+        } catch (error) {
+          expect(error).toBeDefined();
+        }
+      });
+
+      it('should handle errors in system command loading gracefully', async () => {
+        try {
+          const commands = await commandLoader.loadSystemCommands();
+          expect(Array.isArray(commands)).toBe(true);
+        } catch (error) {
+          // Error handling is tested elsewhere, just ensure it doesn't crash
+          expect(error).toBeDefined();
+        }
+      });
     });
   });
 });

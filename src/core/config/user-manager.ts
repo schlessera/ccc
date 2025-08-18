@@ -71,7 +71,8 @@ export class UserConfigManager {
   async getCombinedItems(
     systemDir: string, 
     userDir: string,
-    supportFiles = false // For commands that can be markdown files
+    supportFiles = false, // For commands that can be markdown files
+    excludePattern?: string // Pattern to exclude (e.g., 'ccc' to exclude ccc subdirectory)
   ): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
     const items = new Map<string, { name: string; path: string; source: 'system' | 'user' }>();
 
@@ -79,6 +80,11 @@ export class UserConfigManager {
     if (await PathUtils.exists(systemDir)) {
       const systemEntries = await fs.readdir(systemDir);
       for (const entry of systemEntries) {
+        // Skip excluded patterns
+        if (excludePattern && entry === excludePattern) {
+          continue;
+        }
+        
         const itemPath = path.join(systemDir, entry);
         const stat = await fs.stat(itemPath);
         
@@ -95,7 +101,60 @@ export class UserConfigManager {
     if (await PathUtils.exists(userDir)) {
       const userEntries = await fs.readdir(userDir);
       for (const entry of userEntries) {
+        // Skip excluded patterns
+        if (excludePattern && entry === excludePattern) {
+          continue;
+        }
+        
         const itemPath = path.join(userDir, entry);
+        const stat = await fs.stat(itemPath);
+        
+        if (stat.isDirectory()) {
+          items.set(entry, { name: entry, path: itemPath, source: 'user' });
+        } else if (supportFiles && entry.endsWith('.md')) {
+          const name = path.basename(entry, '.md');
+          items.set(name, { name, path: itemPath, source: 'user' });
+        }
+      }
+    }
+
+    return Array.from(items.values());
+  }
+
+  /**
+   * Get combined items from a specific subdirectory (e.g., 'ccc' for system commands)
+   */
+  async getCombinedItemsFromSubdir(
+    systemDir: string,
+    userDir: string,
+    subdirName: string,
+    supportFiles = false
+  ): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
+    const items = new Map<string, { name: string; path: string; source: 'system' | 'user' }>();
+
+    // Load system items from subdirectory
+    const systemSubdir = path.join(systemDir, subdirName);
+    if (await PathUtils.exists(systemSubdir)) {
+      const systemEntries = await fs.readdir(systemSubdir);
+      for (const entry of systemEntries) {
+        const itemPath = path.join(systemSubdir, entry);
+        const stat = await fs.stat(itemPath);
+        
+        if (stat.isDirectory()) {
+          items.set(entry, { name: entry, path: itemPath, source: 'system' });
+        } else if (supportFiles && entry.endsWith('.md')) {
+          const name = path.basename(entry, '.md');
+          items.set(name, { name, path: itemPath, source: 'system' });
+        }
+      }
+    }
+
+    // Load user items from subdirectory (overwrite system items with same name)
+    const userSubdir = path.join(userDir, subdirName);
+    if (await PathUtils.exists(userSubdir)) {
+      const userEntries = await fs.readdir(userSubdir);
+      for (const entry of userEntries) {
+        const itemPath = path.join(userSubdir, entry);
         const stat = await fs.stat(itemPath);
         
         if (stat.isDirectory()) {
@@ -120,6 +179,14 @@ export class UserConfigManager {
 
   async getCombinedCommands(): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
     return this.getCombinedItems(this.getSystemCommandsDir(), this.getUserCommandsDir(), true);
+  }
+
+  async getCombinedProjectCommands(): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
+    return this.getCombinedItems(this.getSystemCommandsDir(), this.getUserCommandsDir(), true, 'ccc');
+  }
+
+  async getCombinedSystemCommands(): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
+    return this.getCombinedItemsFromSubdir(this.getSystemCommandsDir(), this.getUserCommandsDir(), 'ccc', true);
   }
 
   async getCombinedHooks(): Promise<Array<{ name: string; path: string; source: 'system' | 'user' }>> {
