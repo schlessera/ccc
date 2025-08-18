@@ -42,16 +42,10 @@ export async function installCommand(options: InstallOptions): Promise<void> {
     try {
       spinner.start('Installing global CCC command');
 
-      // Check if source is executable
-      try {
-        await fs.access(sourcePath, fs.constants.X_OK);
-      } catch (error) {
-        // If source is not executable, make it executable
-        await fs.chmod(sourcePath, 0o755);
-      }
-
-      // Copy the actual CCC executable instead of creating a wrapper
-      await fs.copyFile(sourcePath, globalCccPath);
+      // Create a smart launcher script that works across environments
+      const launcherScript = createSmartLauncher(sourcePath);
+      
+      await fs.writeFile(globalCccPath, launcherScript);
       await fs.chmod(globalCccPath, 0o755);
 
       // Install system commands
@@ -65,9 +59,9 @@ export async function installCommand(options: InstallOptions): Promise<void> {
 
       const lines = [
         `Installed: ${chalk.green(globalCccPath)}`,
-        `Copied from: ${chalk.gray(sourcePath)}`,
+        `Source: ${chalk.gray(sourcePath)}`,
         '',
-        'The CCC executable has been copied and is now available globally.',
+        'Smart launcher installed - works across different environments.',
         '',
         'System commands installed:'
       ];
@@ -153,5 +147,77 @@ async function installSystemCommands(): Promise<{ name: string; description?: st
     console.warn('Warning: Failed to install system commands:', error);
     return [];
   }
+}
+
+function createSmartLauncher(sourcePath: string): string {
+  return `#!/usr/bin/env bash
+
+# CCC Smart Launcher
+# This script intelligently launches CCC based on available installation methods
+
+set -e
+
+# Colors for output
+RED='\\033[0;31m'
+YELLOW='\\033[1;33m'
+GREEN='\\033[0;32m'
+NC='\\033[0m' # No Color
+
+# Function to print colored output
+print_error() { echo -e "\${RED}❌ \$1\${NC}" >&2; }
+print_warning() { echo -e "\${YELLOW}⚠️  \$1\${NC}" >&2; }
+print_success() { echo -e "\${GREEN}✅ \$1\${NC}" >&2; }
+
+# Method 1: Try the original source path (for development environments)
+if [ -f "${sourcePath}" ]; then
+    # Check if node_modules exists relative to source
+    SOURCE_DIR="\$(dirname "${sourcePath}")"
+    NODE_MODULES_DIR="\$(dirname "\$(dirname "\$SOURCE_DIR")")/node_modules"
+    
+    if [ -d "\$NODE_MODULES_DIR" ]; then
+        exec "${sourcePath}" "\$@"
+    fi
+fi
+
+# Method 2: Try npx with exact package name (most reliable)
+if command -v npx &> /dev/null; then
+    if npx --version &> /dev/null; then
+        exec npx claude-code-central "\$@"
+    fi
+fi
+
+# Method 3: Try global npm installation
+if command -v ccc &> /dev/null && [ "\$(which ccc)" != "\$0" ]; then
+    exec ccc "\$@"
+fi
+
+# Method 4: Try node with global package
+if command -v node &> /dev/null; then
+    # Try to find globally installed package
+    GLOBAL_PATH="\$(npm root -g 2>/dev/null)/claude-code-central/dist/cli/index.js"
+    if [ -f "\$GLOBAL_PATH" ]; then
+        exec node "\$GLOBAL_PATH" "\$@"
+    fi
+fi
+
+# If all methods fail, provide helpful error message
+print_error "Cannot locate CCC installation"
+echo ""
+echo "CCC can be used in several ways:"
+echo ""
+echo "1. 📦 Use via npx (recommended):"
+echo "   \${GREEN}npx claude-code-central \$*\${NC}"
+echo ""
+echo "2. 🌐 Install globally via npm:"
+echo "   \${GREEN}npm install -g claude-code-central\${NC}"
+echo "   \${GREEN}ccc \$*\${NC}"
+echo ""
+echo "3. 🔧 For development:"
+echo "   \${GREEN}git clone <repo> && cd ccc && npm install && npm run build\${NC}"
+echo "   \${GREEN}./dist/cli/index.js \$*\${NC}"
+echo ""
+print_warning "Falling back to npx (may be slower on first run)"
+exec npx claude-code-central "\$@"
+`;
 }
 

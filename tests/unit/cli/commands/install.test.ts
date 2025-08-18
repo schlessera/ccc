@@ -125,9 +125,9 @@ describe('installCommand', () => {
 
       expect(p.intro).toHaveBeenCalledWith('[CYAN]📦 Install Global Commands[/CYAN]');
       expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(fs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/home/user/.local/bin/ccc'
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.local/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
       expect(fs.chmod).toHaveBeenCalledWith('/home/user/.local/bin/ccc', 0o755);
       expect(mockSpinner.start).toHaveBeenCalledWith('Installing global CCC command');
@@ -146,9 +146,9 @@ describe('installCommand', () => {
       await installCommand({ prefix: '/usr/local/bin' });
 
       expect(fs.ensureDir).toHaveBeenCalledWith('/usr/local/bin');
-      expect(fs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/usr/local/bin/ccc'
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/usr/local/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
     });
 
@@ -162,9 +162,8 @@ describe('installCommand', () => {
 
       await installCommand({});
 
-      // Should copy the file, not write a script
-      expect(fs.copyFile).toHaveBeenCalledWith('/path/to/ccc', '/home/user/.local/bin/ccc');
-      expect(fs.access).toHaveBeenCalledWith('/path/to/ccc', 1); // Check execute permission
+      // Should write a launcher script, not copy the file
+      expect(fs.writeFile).toHaveBeenCalledWith('/home/user/.local/bin/ccc', expect.stringContaining('#!/usr/bin/env bash'));
     });
   });
 
@@ -219,7 +218,7 @@ describe('installCommand', () => {
 
       await installCommand({});
 
-      expect(fs.copyFile).toHaveBeenCalled();
+      expect(fs.writeFile).toHaveBeenCalled();
       expect(fs.chmod).toHaveBeenCalled();
     });
   });
@@ -300,7 +299,7 @@ describe('installCommand', () => {
         '[GREEN]✅ Installation Complete[/GREEN]'
       );
       expect(p.note).toHaveBeenCalledWith(
-        expect.stringContaining('Copied from: [GRAY]/path/to/ccc[/GRAY]'),
+        expect.stringContaining('Source: [GRAY]/path/to/ccc[/GRAY]'),
         '[GREEN]✅ Installation Complete[/GREEN]'
       );
     });
@@ -369,7 +368,7 @@ describe('installCommand', () => {
     it('should handle file write errors', async () => {
       (PathUtils.exists as jest.Mock).mockResolvedValue(false);
       (fs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
-      (fs.copyFile as unknown as jest.Mock).mockRejectedValue(new Error('Disk full'));
+      (fs.writeFile as unknown as jest.Mock).mockRejectedValue(new Error('Disk full'));
 
       const mockSpinner = {
         start: jest.fn(),
@@ -387,7 +386,7 @@ describe('installCommand', () => {
     it('should handle chmod errors', async () => {
       (PathUtils.exists as jest.Mock).mockResolvedValue(false);
       (fs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
-      (fs.copyFile as unknown as jest.Mock).mockResolvedValue(undefined);
+      // writeFile is already mocked in beforeEach
     (fs.writeFile as unknown as jest.Mock).mockResolvedValue(undefined);
     (fs.access as unknown as jest.Mock).mockResolvedValue(undefined);
       (fs.chmod as unknown as jest.Mock).mockRejectedValue(new Error('Permission error'));
@@ -433,9 +432,9 @@ describe('installCommand', () => {
       
       // Should create directory and install file
       expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(fs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/home/user/.local/bin/ccc'
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.local/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
       expect(fs.chmod).toHaveBeenCalledWith('/home/user/.local/bin/ccc', 0o755);
       
@@ -475,9 +474,9 @@ describe('installCommand', () => {
       });
       
       // Should proceed with installation
-      expect(fs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/usr/local/bin/ccc'
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        '/usr/local/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
     });
   });

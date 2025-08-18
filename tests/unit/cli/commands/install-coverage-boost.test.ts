@@ -40,7 +40,7 @@ describe('Install Command Coverage Boost', () => {
     mockOs.homedir.mockReturnValue('/home/user');
     mockPath.join.mockImplementation((...args) => args.join('/'));
     (mockFs.ensureDir as any).mockResolvedValue(undefined);
-    (mockFs.copyFile as any).mockResolvedValue(undefined);
+    (mockFs.writeFile as any).mockResolvedValue(undefined);
     (mockFs.access as any).mockResolvedValue(undefined);
     (mockFs.chmod as any).mockResolvedValue(undefined);
     mockPathUtils.exists.mockResolvedValue(false);
@@ -57,9 +57,9 @@ describe('Install Command Coverage Boost', () => {
       await installCommand({ prefix: customPrefix });
 
       expect(mockFs.ensureDir).toHaveBeenCalledWith(customPrefix);
-      expect(mockFs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/custom/bin/ccc'
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        '/custom/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
     });
 
@@ -67,9 +67,9 @@ describe('Install Command Coverage Boost', () => {
       await installCommand({});
 
       expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.local/bin');
-      expect(mockFs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        '/home/user/.local/bin/ccc'
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        '/home/user/.local/bin/ccc',
+        expect.stringContaining('#!/usr/bin/env bash')
       );
     });
   });
@@ -86,7 +86,7 @@ describe('Install Command Coverage Boost', () => {
         message: expect.stringContaining('already installed'),
         initialValue: false
       });
-      expect(mockFs.copyFile).toHaveBeenCalled();
+      expect(mockFs.writeFile).toHaveBeenCalled();
     });
 
     it('should handle already installed - reinstall declined', async () => {
@@ -160,7 +160,7 @@ describe('Install Command Coverage Boost', () => {
 
   describe('Error handling', () => {
     it('should handle file system errors during installation', async () => {
-      (mockFs.copyFile as any).mockRejectedValue(new Error('Permission denied'));
+      (mockFs.writeFile as any).mockRejectedValue(new Error('Permission denied'));
       const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
       await installCommand({});
@@ -198,34 +198,35 @@ describe('Install Command Coverage Boost', () => {
     });
   });
 
-  describe('File copying and permissions', () => {
-    it('should copy source executable to destination', async () => {
+  describe('Launcher script creation', () => {
+    it('should create smart launcher script', async () => {
       await installCommand({});
 
-      expect(mockFs.copyFile).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        expect.stringContaining('ccc')
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('ccc'),
+        expect.stringContaining('#!/usr/bin/env bash')
       );
     });
 
-    it('should check source file permissions', async () => {
+    it('should include source path in launcher', async () => {
       await installCommand({});
 
-      expect(mockFs.access).toHaveBeenCalledWith(
-        '/path/to/ccc',
-        (fs.constants as any).X_OK
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('ccc'),
+        expect.stringContaining('/path/to/ccc')
       );
     });
 
-    it('should make source executable if not already', async () => {
-      (mockFs.access as any).mockRejectedValue(new Error('Not executable'));
-      
+    it('should include fallback methods in launcher', async () => {
       await installCommand({});
 
-      expect(mockFs.chmod).toHaveBeenCalledWith('/path/to/ccc', 0o755);
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('ccc'),
+        expect.stringContaining('npx claude-code-central')
+      );
     });
 
-    it('should set correct permissions on destination file', async () => {
+    it('should set correct permissions on launcher script', async () => {
       await installCommand({});
 
       expect(mockFs.chmod).toHaveBeenCalledWith(
