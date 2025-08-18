@@ -91,11 +91,7 @@ describe('CLI Index Simple Coverage', () => {
   it('should cover exported functions', async () => {
     try {
       // Import and test exported functions
-      const { setMainMenuContext } = await import('../../../src/cli/index');
-      
-      // Test setMainMenuContext
-      setMainMenuContext(true);
-      setMainMenuContext(false);
+      await import('../../../src/cli/index');
       
       expect(true).toBe(true);
     } catch (error) {

@@ -188,43 +188,6 @@ describe('CLI Entry Point', () => {
     expect(packageJson.version).toBe('1.0.0');
   });
 
-  it('should export context management functions', () => {
-    delete require.cache[require.resolve('../../../src/cli/index')];
-    const cliModule = require('../../../src/cli/index');
-    
-    // Test setMainMenuContext function
-    expect(typeof cliModule.setMainMenuContext).toBe('function');
-    cliModule.setMainMenuContext(true);
-    cliModule.setMainMenuContext(false);
-    
-    // Test wasESCPressed function  
-    expect(typeof cliModule.wasESCPressed).toBe('function');
-    const escPressed = cliModule.wasESCPressed();
-    expect(typeof escPressed).toBe('boolean');
-  });
-
-  it('should export createESCCancellablePromise function', async () => {
-    delete require.cache[require.resolve('../../../src/cli/index')];
-    const cliModule = require('../../../src/cli/index');
-    
-    expect(typeof cliModule.createESCCancellablePromise).toBe('function');
-    
-    // Test with resolving promise
-    const testPromise = Promise.resolve('test result');
-    const cancellablePromise = cliModule.createESCCancellablePromise(testPromise);
-    const result = await cancellablePromise;
-    expect(result).toBe('test result');
-  });
-
-  it('should handle createESCCancellablePromise with rejecting promise', async () => {
-    delete require.cache[require.resolve('../../../src/cli/index')];
-    const cliModule = require('../../../src/cli/index');
-    
-    const testPromise = Promise.reject(new Error('test error'));
-    const cancellablePromise = cliModule.createESCCancellablePromise(testPromise);
-    
-    await expect(cancellablePromise).rejects.toThrow('test error');
-  });
 
   it('should exercise async execution path with arguments', () => {
     // Set argv to have arguments to trigger program.parse path

@@ -75,13 +75,10 @@ jest.mock('../../../src/utils/paths', () => ({
 }));
 
 jest.mock('../../../src/cli/index', () => ({
-  setMainMenuContext: jest.fn(),
-  createESCCancellablePromise: jest.fn((promise) => promise),
 }));
 
 import * as p from '@clack/prompts';
 import { PathUtils } from '../../../src/utils/paths';
-import { setMainMenuContext } from '../../../src/cli/index';
 import { setupCommand } from '../../../src/cli/commands/setup';
 import { listCommand } from '../../../src/cli/commands/list';
 import { updateCommand } from '../../../src/cli/commands/update';
@@ -188,8 +185,6 @@ describe('interactiveMode', () => {
 
       await interactiveMode();
 
-      expect(setMainMenuContext).toHaveBeenCalledWith(true);
-      expect(setMainMenuContext).toHaveBeenCalledWith(false);
     });
 
     it('should handle current directory name extraction', async () => {

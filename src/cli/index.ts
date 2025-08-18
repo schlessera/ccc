@@ -18,38 +18,6 @@ import { statusCommand } from './commands/status';
 import { interactiveMode } from './interactive';
 import { version } from '../../package.json';
 
-// Global state for ESC key handling (currently disabled)
-// @ts-ignore - kept for compatibility with existing calls
-let isInMainMenu = false;
-
-// ESC key handling using readline keypress events
-function setupGlobalESCHandler(): void {
-  // For now, disable global ESC handling due to environment limitations
-  // In WSL and similar environments, TTY support is limited and clack prompts
-  // take exclusive control of stdin, making global keypress handling unreliable
-  
-  // Future improvement: Could explore integrating with clack's internal key handling
-  // or using a different approach for ESC detection that works better with prompts
-  
-  console.log('INFO: ESC key handling is limited in this environment. Use Ctrl+C for cancellation.');
-}
-
-// Context management functions (currently disabled but kept for compatibility)
-export function setMainMenuContext(inMenu: boolean): void {
-  isInMainMenu = inMenu;
-}
-
-export function wasESCPressed(): boolean {
-  // Currently always returns false as ESC handling is disabled
-  // due to environment limitations with TTY support
-  return false;
-}
-
-export function createESCCancellablePromise<T>(promise: Promise<T>): Promise<T> {
-  // Currently just returns the original promise as ESC handling is disabled
-  // In the future, this could wrap the promise with ESC cancellation logic
-  return promise;
-}
 
 
 // Check for updates
@@ -166,9 +134,6 @@ program.exitOverride();
 // Parse arguments and handle interactive mode
 (async () => {
   try {
-    // Set up global ESC key handling
-    setupGlobalESCHandler();
-    
     // Show interactive mode if no arguments
     if (!process.argv.slice(2).length) {
       // Show welcome header with Clack intro

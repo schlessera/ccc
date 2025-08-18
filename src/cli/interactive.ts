@@ -12,7 +12,6 @@ import { cleanupCommand } from './commands/cleanup';
 import { validateCommand } from './commands/validate';
 import { statusCommand } from './commands/status';
 import { PathUtils } from '../utils/paths';
-import { setMainMenuContext } from './index';
 import { getService, ServiceKeys } from '../core/container';
 import { StorageManager } from '../core/storage/manager';
 
@@ -77,8 +76,6 @@ export async function interactiveMode(maxIterations?: number): Promise<void> {
       );
     }
     
-    // Set context: we're in main menu
-    setMainMenuContext(true);
     
     const action = await p.select({
       message: 'What would you like to do?',
@@ -91,8 +88,6 @@ export async function interactiveMode(maxIterations?: number): Promise<void> {
     }
 
     try {
-      // Set context: we're no longer in main menu  
-      setMainMenuContext(false);
       
       switch (action) {
         case 'setup':
